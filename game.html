@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《战争进化史 3D》Age of War 3D - 经典原版 1:1 官方重制</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111827;
+      user-select: none;
+    }
+    #game-canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* 飘字伤害数字层 */
+    #damage-text-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 50;
+      overflow: hidden;
+    }
+    .damage-popup {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      font-family: 'Arial Black', Impact, sans-serif;
+      font-size: 18px;
+      font-weight: 900;
+      text-shadow: 2px 2px 2px #000, 0 0 6px rgba(0,0,0,0.8);
+      animation: float-up 0.8s ease-out forwards;
+    }
+    @keyframes float-up {
+      0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
+      30% { transform: translate(-50%, -70%) scale(1.2); }
+      100% { opacity: 0; transform: translate(-50%, -100%) scale(1.0); }
+    }
+
+    /* 加载开屏提示 */
+    #loading-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      color: #f1f5f9;
+      font-family: 'Segoe UI', sans-serif;
+      transition: opacity 0.5s;
+    }
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #334155;
+      border-top: 5px solid #f59e0b;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* 战斗飘字层 */
+    #damage-text-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 50;
+      overflow: hidden;
+    }
+    .damage-popup {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      font-family: 'Arial Black', Impact, sans-serif;
+      font-size: 18px;
+      font-weight: 900;
+      text-shadow: 2px 2px 2px #000, 0 0 6px rgba(0,0,0,0.8);
+      animation: float-up 0.8s ease-out forwards;
+    }
+    @keyframes float-up {
+      0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
+      30% { transform: translate(-50%, -70%) scale(1.2); }
+      100% { opacity: 0; transform: translate(-50%, -100%) scale(1.0); }
+    }
+
+    /* 加载开屏提示 */
+    #loading-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      color: #f1f5f9;
+      font-family: 'Segoe UI', sans-serif;
+      transition: opacity 0.5s;
+    }
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #334155;
+      border-top: 5px solid #f59e0b;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
+  <!-- 离线本地 Three.js 核心生态 -->
+  <script src="./libs/three.min.js"></script>
+  <script src="./libs/fflate.min.js"></script>
+  <script src="./libs/GLTFLoader.js"></script>
+  <script src="./libs/SkeletonUtils.js"></script>
+</head>
+<body>
+  <!-- 3D 渲染画布容器 -->
+  <div id="game-canvas-container"></div>
+
+  <!-- 战斗飘字层 -->
+  <div id="damage-text-layer"></div>
+
+  <!-- 资源预加载屏幕 -->
+  <div id="loading-screen">
+    <div class="loading-spinner"></div>
+    <h2 style="color:#fbbf24; margin-bottom:8px;">《战争进化史 3D》AGE OF WAR</h2>
+    <p id="loading-text" style="color:#94a3b8; font-size:14px;">正在初始化 1:1 经典原版战场与 3D 兵种...</p>
+  </div>
+
+  <!-- 主游戏逻辑入口 (ES Module) -->
+  <script type="module">
+    import { GameManager } from './src/managers/GameManager.js';
+    import { UIManager } from './src/ui/UIManager.js';
+    import { EnvironmentManager } from './src/environment/EnvironmentManager.js';
+    import { BattleCameraController } from './src/camera/BattleCameraController.js';
+    import { SoundManager } from './src/audio/SoundManager.js';
+    import { UnitFactory } from './src/model/UnitFactory.js';
+    import { TurretFactory } from './src/model/TurretFactory.js';
+    import { BaseFactory } from './src/model/BaseFactory.js';
+    import { MenuManager } from './src/ui/MenuManager.js';
+
+    window.UnitFactory = UnitFactory;
+    window.TurretFactory = TurretFactory;
+    window.BaseFactory = BaseFactory;
+
+    async function init() {
+      const container = document.getElementById('game-canvas-container');
+      const loadingScreen = document.getElementById('loading-screen');
+      const loadingText = document.getElementById('loading-text');
+
+      // 1. Three.js 场景与渲染器
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x38bdf8); // 经典晴空蔚蓝
+      scene.fog = null; // 雾气清零，远景通透
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.localClippingEnabled = true; // 开启硬件级局部切片，保证战场视线净空
+      container.appendChild(renderer.domElement);
+      window.renderer = renderer;
+      window.scene = scene;
+
+      // 2. 摄影机与 2.5D 控制器
+      const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.5, 300);
+      window.camera = camera;
+      const cameraController = new BattleCameraController(camera, renderer.domElement);
+      window.cameraController = cameraController;
+
+      // 3. 经典光照系统 (暖阳 + 柔和天光)
+      const ambientLight = new THREE.AmbientLight(0xfffbeb, 0.65);
+      scene.add(ambientLight);
+
+      const sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
+      sunLight.position.set(16, 32, 20);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 2048;
+      sunLight.shadow.mapSize.height = 2048;
+      sunLight.shadow.camera.near = 1;
+      sunLight.shadow.camera.far = 100;
+      sunLight.shadow.camera.left = -35;
+      sunLight.shadow.camera.right = 35;
+      sunLight.shadow.camera.top = 20;
+      sunLight.shadow.camera.bottom = -20;
+      sunLight.shadow.bias = -0.0005;
+      scene.add(sunLight);
+
+      const skyLight = new THREE.DirectionalLight(0x7dd3fc, 0.5);
+      skyLight.position.set(-20, 20, -20);
+      scene.add(skyLight);
+
+      // 4. 音效与 BGM 管理器
+      const soundManager = new SoundManager();
+      window.addEventListener('click', () => {
+        soundManager.startBGM();
+      }, { once: true });
+
+      // 5. 加载管理器与 GLTF 资源预热
+      const gltfLoader = new THREE.GLTFLoader();
+
+      const loadGltf = (path, name) => new Promise((resolve) => {
+        loadingText.textContent = `正在预热模型: ${name}...`;
+        gltfLoader.load(path, (gltf) => {
+          resolve(gltf);
+        }, undefined, (err) => {
+          console.warn(`加载 ${path} 失败:`, err);
+          resolve(null);
+        });
+      });
+
+      // 预热全套第一时代模型
+      const [caveman1Gltf, caveman2Gltf, caveman3Gltf, baseGltf, turret1Gltf, turret2Gltf, turret3Gltf] = await Promise.all([
+        loadGltf('./models/era1/caveman_1_remastered.glb', '棒槌野人'),
+        loadGltf('./models/era1/caveman_2_remastered.glb', '弹弓手'),
+        loadGltf('./models/era1/caveman_3.glb', '恐龙骑兵'),
+        loadGltf('./models/era1/base_1.glb', '原始洞穴基地'),
+        loadGltf('./models/era1/turret_1_1.glb', '投石索塔'),
+        loadGltf('./models/era1/turret_1_2.glb', '连发恐龙蛋塔'),
+        loadGltf('./models/era1/turret_1_3.glb', '投石车')
+      ]);
+
+      const templates = {};
+      const clipLibraries = {};
+      window.clipLibraries = clipLibraries;
+
+      const registerAsset = (id, gltf) => {
+        if (!gltf) return;
+        templates[id] = gltf.scene;
+        clipLibraries[id] = {};
+        if (gltf.animations) {
+          gltf.animations.forEach(clip => {
+            clipLibraries[id][clip.name] = clip;
+            clipLibraries[id][clip.name.toLowerCase()] = clip;
+          });
+        }
+      };
+
+      registerAsset('caveman_1', caveman1Gltf);
+      registerAsset('caveman_2', caveman2Gltf);
+      registerAsset('caveman_3', caveman3Gltf);
+      registerAsset('base_1', baseGltf);
+      registerAsset('turret_1_1', turret1Gltf);
+      registerAsset('turret_1_2', turret2Gltf);
+      registerAsset('turret_1_3', turret3Gltf);
+
+      // 后台异步预热时代 2 ~ 5 的城堡基地、主力兵种与炮塔 (零首屏阻塞)
+      const preloadOtherEras = async () => {
+        const eraAssets = [
+          // 时代 2 (中世纪)
+          { id: 'base_2', url: './models/era2/base_2.glb' },
+          { id: 'knight_1', url: './models/era2/knight_1.glb' },
+          { id: 'knight_2', url: './models/era2/knight_2.glb' },
+          { id: 'knight_3', url: './models/era2/knight_3.glb' },
+          { id: 'turret_2_1', url: './models/era2/turret_2_1.glb' },
+          { id: 'turret_2_2', url: './models/era2/turret_2_2.glb' },
+          { id: 'turret_2_3', url: './models/era2/turret_2_3.glb' },
+          // 时代 3 (文艺复兴)
+          { id: 'base_3', url: './models/era3/base_3.glb' },
+          { id: 'swordman_1', url: './models/era3/swordman_1.glb' },
+          { id: 'swordman_2', url: './models/era3/swordman_2.glb' },
+          { id: 'swordman_3', url: './models/era3/swordman_3.glb' },
+          { id: 'turret_3_1', url: './models/era3/turret_3_1.glb' },
+          { id: 'turret_3_2', url: './models/era3/turret_3_2.glb' },
+          { id: 'turret_3_3', url: './models/era3/turret_3_3.glb' },
+          // 时代 4 (现代)
+          { id: 'base_4', url: './models/era4/base_4.glb' },
+          { id: 'soldier_1', url: './models/era4/soldier_1.glb' },
+          { id: 'soldier_2', url: './models/era4/soldier_2.glb' },
+          { id: 'soldier_3', url: './models/era4/soldier_3.glb' },
+          { id: 'turret_4_1', url: './models/era4/turret_4_1.glb' },
+          { id: 'turret_4_2', url: './models/era4/turret_4_2.glb' },
+          { id: 'turret_4_3', url: './models/era4/turret_4_3.glb' },
+          // 时代 5 (未来)
+          { id: 'base_5', url: './models/era5/base_5.glb' },
+          { id: 'trooper_1', url: './models/era5/trooper_1.glb' },
+          { id: 'trooper_2', url: './models/era5/trooper_2.glb' },
+          { id: 'trooper_3', url: './models/era5/trooper_3.glb' },
+          { id: 'trooper_4', url: './models/era5/trooper_4.glb' },
+          { id: 'super_soldier', url: './models/era5/trooper_4.glb' },
+          { id: 'turret_5_1', url: './models/era5/turret_5_1.glb' },
+          { id: 'turret_5_2', url: './models/era5/turret_5_2.glb' },
+          { id: 'turret_5_3', url: './models/era5/turret_5_3.glb' }
+        ];
+
+        for (const item of eraAssets) {
+          gltfLoader.load(item.url, (gltf) => {
+            registerAsset(item.id, gltf);
+          }, undefined, () => {});
+        }
+      };
+      preloadOtherEras();
+
+      // 6. 搭建生态环境与地貌 (时代 1 原始石器 + 时代 2~5 定制物理净空大场景)
+      loadingText.textContent = '正在布设原始自然地貌、阔叶树与深景冷杉...';
+      const envManager = new EnvironmentManager(scene, gltfLoader, { sunLight, skyLight, ambientLight });
+      await envManager.build();
+      window.envManager = envManager;
+
+      // 7. 初始化 GameManager 与 UIManager
+      loadingText.textContent = '装配对战核心状态机与木质 UI...';
+      const gameManager = new GameManager(scene, soundManager);
+      gameManager.setAssets(templates, clipLibraries);
+      gameManager.gltfLoader = gltfLoader;
+      gameManager.registerAsset = registerAsset;
+      gameManager.initGame();
+      window.gameManager = gameManager;
+
+      const uiManager = new UIManager(gameManager, document.body);
+      window.uiManager = uiManager;
+      gameManager.uiManager = uiManager;
+
+      const menuManager = new MenuManager(gameManager, soundManager, uiManager);
+      window.menuManager = menuManager;
+      gameManager.menuManager = menuManager;
+
+      // 联动时代切换：当玩家演进时代或重置游戏时，环境背景无缝同步更迭！
+      gameManager.addAgeListener(async (newAge) => {
+        await envManager.setAge(newAge);
+      });
+
+      // 8. 漂浮伤害数字监听
+      const damageLayer = document.getElementById('damage-text-layer');
+      const tempVec = new THREE.Vector3();
+
+      gameManager.onFloatingText = (worldX, worldY, text, color) => {
+        tempVec.set(worldX, worldY, 0);
+        tempVec.project(camera);
+
+        const x = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-(tempVec.y * 0.5) + 0.5) * window.innerHeight;
+
+        const el = document.createElement('div');
+        el.className = 'damage-popup';
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+        el.style.color = color;
+        el.textContent = text;
+        damageLayer.appendChild(el);
+
+        setTimeout(() => {
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }, 800);
+      };
+
+      // 8.1 战场空投气泡功能已停用
+
+      // 9. 窗口大小自适应
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // 隐藏加载开屏
+      loadingScreen.style.opacity = '0';
+      setTimeout(() => { loadingScreen.style.display = 'none'; }, 500);
+
+      // 10. 主循环
+      let lastTime = performance.now();
+
+      function animate(now) {
+        requestAnimationFrame(animate);
+
+        const dt = Math.min(0.08, (now - lastTime) / 1000);
+        lastTime = now;
+
+        cameraController.update(dt);
+        gameManager.update(dt);
+        uiManager.update();
+
+        renderer.render(scene, camera);
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    init();
+  </script>
+</body>
+</html>

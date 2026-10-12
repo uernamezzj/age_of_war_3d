@@ -1,0 +1,19 @@
+{
+  "name": "turret_1_3_idle",
+  "duration": 0.05,
+  "tracks": [
+    {
+      "name": "skull_catapult.quaternion",
+      "type": "quaternion",
+      "times": [
+        0.0
+      ],
+      "values": [
+        0.5000000000000001,
+        -0.5000000000000001,
+        0.5000000000000001,
+        0.5000000000000001
+      ]
+    }
+  ]
+}

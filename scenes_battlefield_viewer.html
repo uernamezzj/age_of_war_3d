@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《战争进化史 3D》开源整装大场景实装对决背景检视台</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* 顶部场景切换栏 */
+    #top-nav {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 40px;
+      padding: 6px 12px;
+      display: flex;
+      gap: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    .scene-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #94a3b8;
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .scene-btn:hover {
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .scene-btn.active {
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+    .scene-btn.active[data-scene="forest"] { background: linear-gradient(135deg, #15803d, #22c55e); border-color: #4ade80; }
+    .scene-btn.active[data-scene="spaceship"] { background: linear-gradient(135deg, #0369a1, #0284c7); border-color: #38bdf8; }
+    .scene-btn.active[data-scene="dungeon"] { background: linear-gradient(135deg, #b45309, #d97706); border-color: #f59e0b; }
+    .scene-btn.active[data-scene="cyberpunk"] { background: linear-gradient(135deg, #be185d, #ec4899); border-color: #f472b6; }
+    .scene-btn.active[data-scene="city"] { background: linear-gradient(135deg, #475569, #64748b); border-color: #94a3b8; }
+
+    /* 左上角 HUD */
+    #hud-info {
+      position: absolute;
+      top: 16px;
+      left: 20px;
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 14px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 340px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .hud-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hud-desc {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    /* 右上角视角切换栏 */
+    #view-dock {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      z-index: 20;
+      display: flex;
+      gap: 8px;
+    }
+    .view-btn {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #cbd5e1;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .view-btn:hover { background: #334155; color: #fff; border-color: #38bdf8; }
+    .view-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+
+    /* 底部统计与技术参数 */
+    #bottom-stats {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 10px 18px;
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      gap: 20px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    .stat-item b { color: #f1f5f9; }
+
+    #loading-toast {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      border-radius: 14px;
+      padding: 18px 32px;
+      font-size: 14px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      transition: opacity 0.3s;
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #38bdf8;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./node_modules/three/build/three.module.js",
+        "three/addons/": "./node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- 顶部 5 大整装开源场景切换 -->
+  <div id="top-nav">
+    <button class="scene-btn active" data-scene="forest" onclick="loadScene('forest')">
+      <span>🌲</span> 1. 原版森林峡谷 (117物件真实生态)
+    </button>
+    <button class="scene-btn" data-scene="spaceship" onclick="loadScene('spaceship')">
+      <span>🚀</span> 2. 未来星际战舰廊道 (Three.js 官方开源)
+    </button>
+    <button class="scene-btn" data-scene="dungeon" onclick="loadScene('dungeon')">
+      <span>🏰</span> 3. 中世纪要塞战堡 (798件石砌巨构)
+    </button>
+    <button class="scene-btn" data-scene="cyberpunk" onclick="loadScene('cyberpunk')">
+      <span>🌆</span> 4. 赛博朋克大都市 (立体霓虹街区)
+    </button>
+    <button class="scene-btn" data-scene="city" onclick="loadScene('city')">
+      <span>🪖</span> 5. 现代都市战争前线 (现代建筑街道)
+    </button>
+  </div>
+
+  <!-- HUD 说明卡 -->
+  <div id="hud-info">
+    <div class="hud-title" id="hud-title">🌲 原版森林峡谷战场</div>
+    <div class="hud-desc" id="hud-desc">
+      原开源项目（Unity Environment.prefab）提取的 117 个环境物件严密组装而成，涵盖高低树林、草丛、碎石与景深巨石视差层。
+    </div>
+  </div>
+
+  <!-- 视角切换 -->
+  <div id="view-dock">
+    <button class="view-btn active" id="btn-view-battle" onclick="switchCamera('battle')">🎮 2.5D 对决推线视角</button>
+    <button class="view-btn" id="btn-view-orbit" onclick="switchCamera('orbit')">🌐 360° 自由上帝航拍</button>
+    <button class="view-btn" id="btn-view-close" onclick="switchCamera('close')">⚔️ 士兵行军前沿特写</button>
+  </div>
+
+  <!-- 底部状态栏 -->
+  <div id="bottom-stats">
+    <div class="stat-item">当前背景：<b id="stat-name">森林峡谷 (Unity 117件)</b></div>
+    <div class="stat-item">场景规模：<b id="stat-poly">全量整装大场景</b></div>
+    <div class="stat-item">渲染模式：<b>PBR 物理材质 + PCF 软阴影</b></div>
+    <div class="stat-item">操作：<b>鼠标左键旋转 · 右键平移 · 滚轮缩放</b></div>
+  </div>
+
+  <!-- 载入提示 -->
+  <div id="loading-toast">
+    <div class="spinner"></div>
+    <span id="loading-text">正在装载整装 3D 大场景...</span>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    let scene, camera, renderer, controls;
+    let currentSceneKey = 'forest';
+
+    const gltfLoader = new GLTFLoader();
+    const envGroup = new THREE.Group();
+    const armiesGroup = new THREE.Group();
+    const activeMixers = [];
+
+    // 5 大整装大场景定义配置
+    const SCENES_CONFIG = {
+      forest: {
+        title: '🌲 原版森林峡谷战场',
+        desc: '原开源项目（Unity Environment.prefab）提取的 117 个环境物件严密组装而成，涵盖高低树林、草丛、碎石与景深巨石视差层。',
+        type: 'custom_json',
+        jsonFile: './src/config/original_forest_scene.json',
+        bgColor: 0x87ceeb,
+        fogColor: 0x9fc5e8,
+        fogNear: 25,
+        fogFar: 75,
+        lightColor: 0xfffaed,
+        lightIntensity: 1.6,
+        armiesEra: 1
+      },
+      spaceship: {
+        title: '🚀 未来星际战舰核心走廊 (Space Ship Hallway)',
+        desc: 'Three.js 官方开源的整装太空战舰内部大场景（space_ship_hallway.glb）。拥有高科技金属墙壁、发光导管、舷窗与厚重气密隔离舱门。',
+        type: 'single_glb',
+        file: './models/scenes/space_ship_hallway.glb',
+        scale: 1.15,
+        pos: [-10, 0, 0],
+        rot: [0, 0, 0],
+        bgColor: 0x05070e,
+        fogColor: 0x0a1128,
+        fogNear: 20,
+        fogFar: 80,
+        lightColor: 0x88bbff,
+        lightIntensity: 2.2,
+        armiesEra: 5
+      },
+      dungeon: {
+        title: '🏰 中世纪要塞战堡 (War Karma Fortress Dungeon)',
+        desc: '整装开源的古堡地下战垒（dungeon_warkarma.glb）。拥有整整 798 个石砌部件、立柱、回廊、火把座与铁栅拱门，极具史诗厚重感。',
+        type: 'single_glb',
+        file: './models/scenes/dungeon_warkarma.glb',
+        scale: 0.38,
+        pos: [-10, -0.5, 0],
+        rot: [0, 0, 0],
+        bgColor: 0x140f0c,
+        fogColor: 0x2e2018,
+        fogNear: 15,
+        fogFar: 65,
+        lightColor: 0xffddaa,
+        lightIntensity: 1.8,
+        armiesEra: 3
+      },
+      cyberpunk: {
+        title: '🌆 赛博朋克立体都市 (Littlest Tokyo)',
+        desc: 'Glen Fox 著名的立体未来赛博都市（LittlestTokyo.glb）。全量包含 71 个网格建筑、霓虹招牌、街巷楼宇、高架电缆与循环运行轨道！',
+        type: 'single_glb',
+        file: './models/scenes/scifi_cyberpunk_city.glb',
+        scale: 0.08,
+        pos: [-8, 0, -4],
+        rot: [0, -Math.PI / 4, 0],
+        bgColor: 0x0f172a,
+        fogColor: 0x1e1b4b,
+        fogNear: 30,
+        fogFar: 90,
+        lightColor: 0xf472b6,
+        lightIntensity: 1.9,
+        armiesEra: 5
+      },
+      city: {
+        title: '🪖 现代都市战争前线 (Virtual Urban City)',
+        desc: 'Khronos 官方完整的现代城市街道大场景（virtual_city.glb）。包含 135 栋真实高楼大厦、马路走廊与现代化工业街区结构。',
+        type: 'single_glb',
+        file: './models/scenes/virtual_city.glb',
+        scale: 0.007,
+        pos: [-10, 0, 0],
+        rot: [0, 0, 0],
+        bgColor: 0x1e293b,
+        fogColor: 0x475569,
+        fogNear: 25,
+        fogFar: 85,
+        lightColor: 0xffffff,
+        lightIntensity: 1.7,
+        armiesEra: 4
+      }
+    };
+
+    let hemiLight, sunLight;
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 300);
+      camera.position.set(-8, 9, 22);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
+      container.appendChild(renderer.domElement);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.target.set(-8, 1.2, 0);
+      controls.maxPolarAngle = Math.PI / 2 - 0.01;
+
+      // 动态光照底座
+      hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.7);
+      scene.add(hemiLight);
+
+      sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
+      sunLight.position.set(-15, 30, 20);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 2048;
+      sunLight.shadow.mapSize.height = 2048;
+      sunLight.shadow.camera.near = 0.5;
+      sunLight.shadow.camera.far = 90;
+      sunLight.shadow.camera.left = -45;
+      sunLight.shadow.camera.right = 45;
+      sunLight.shadow.camera.top = 30;
+      sunLight.shadow.camera.bottom = -30;
+      sunLight.shadow.bias = -0.0004;
+      scene.add(sunLight);
+
+      scene.add(envGroup);
+      scene.add(armiesGroup);
+
+      window.addEventListener('resize', onResize);
+
+      // 默认载入原版森林场景
+      loadScene('forest');
+
+      animate();
+    }
+
+    // 核心：一键切换整装大场景
+    window.loadScene = async function(sceneKey) {
+      currentSceneKey = sceneKey;
+      const cfg = SCENES_CONFIG[sceneKey];
+
+      document.querySelectorAll('.scene-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.scene === sceneKey);
+      });
+
+      document.getElementById('hud-title').innerText = cfg.title;
+      document.getElementById('hud-desc').innerText = cfg.desc;
+      document.getElementById('stat-name').innerText = cfg.title.split(' ')[1] || cfg.title;
+
+      showLoading(`正在装载【${cfg.title}】整装大场景...`);
+
+      // 调整天空与大气雾效
+      scene.background = new THREE.Color(cfg.bgColor);
+      scene.fog = new THREE.Fog(cfg.fogColor, cfg.fogNear, cfg.fogFar);
+      sunLight.color.set(cfg.lightColor);
+      sunLight.intensity = cfg.lightIntensity;
+      hemiLight.color.set(cfg.lightColor);
+
+      // 清空旧场景
+      activeMixers.length = 0;
+      while (envGroup.children.length > 0) envGroup.remove(envGroup.children[0]);
+      while (armiesGroup.children.length > 0) armiesGroup.remove(armiesGroup.children[0]);
+
+      try {
+        if (cfg.type === 'custom_json') {
+          // 森林 117 物件真实组装
+          await assembleForestScene();
+        } else if (cfg.type === 'single_glb') {
+          // 开源整装 GLB 直接加载
+          const gltf = await loadGLB(cfg.file);
+          const model = gltf.scene;
+          model.scale.setScalar(cfg.scale);
+          model.position.set(...cfg.pos);
+          if (cfg.rot) model.rotation.set(...cfg.rot);
+          enableShadows(model);
+
+          // 如果大场景自带动画 (如赛博小车与发光招牌)，自动播放
+          if (gltf.animations && gltf.animations.length > 0) {
+            const mixer = new THREE.AnimationMixer(model);
+            gltf.animations.forEach(clip => mixer.clipAction(clip).play());
+            activeMixers.push(mixer);
+          }
+
+          envGroup.add(model);
+        }
+
+        // 装载该大场景对应的时代基地与兵线
+        await mountArmiesOnScene(cfg.armiesEra);
+
+        hideLoading();
+      } catch (err) {
+        console.error("装载场景失败:", err);
+        hideLoading();
+      }
+    };
+
+    // 组装原版森林 117 资产场景
+    async function assembleForestScene() {
+      // 1. 地面
+      const textureLoader = new THREE.TextureLoader();
+      const groundTex = textureLoader.load('./AgeOfWarRemake/Assets/Resources/Prefabs/Environment/rocky_terrain_02_diff_1k.jpg');
+      groundTex.wrapS = THREE.RepeatWrapping;
+      groundTex.wrapT = THREE.RepeatWrapping;
+      groundTex.repeat.set(12, 4);
+
+      const groundGeo = new THREE.PlaneGeometry(90, 25);
+      const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.9 });
+      const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+      groundMesh.rotation.x = -Math.PI / 2 + (-11.76 * Math.PI / 180);
+      groundMesh.position.set(-10, -0.1, -0.27);
+      groundMesh.receiveShadow = true;
+      envGroup.add(groundMesh);
+
+      // 2. 117 个草木石块
+      const res = await fetch('./src/config/original_forest_scene.json');
+      const items = await res.json();
+
+      const assetMap = {
+        'rock_1': './models/environment/rock_1.glb',
+        'trunk_1': './models/environment/trunk_1.glb',
+        'pine': './models/environment/pine_1.glb',
+        'tree': './models/environment/tree_1.glb',
+        'bush': './models/environment/bush_1.glb',
+        'grass': './models/era1/grasses.glb',
+        'pebble': './models/era1/pebble.glb'
+      };
+
+      const protos = {};
+      for (const k in assetMap) {
+        const gltf = await loadGLB(assetMap[k]);
+        enableShadows(gltf.scene);
+        protos[k] = gltf.scene;
+      }
+
+      items.forEach(item => {
+        const proto = protos[item.asset];
+        if (!proto) return;
+        const clone = proto.clone(true);
+        clone.position.set(item.pos[0], item.pos[1], item.pos[2]);
+        clone.scale.set(Math.abs(item.scale[0]) * 0.8, Math.abs(item.scale[1]) * 0.8, Math.abs(item.scale[2]) * 0.8);
+        if (item.euler) {
+          clone.rotation.set(item.euler[0] * Math.PI / 180, item.euler[1] * Math.PI / 180, item.euler[2] * Math.PI / 180);
+        }
+        enableShadows(clone);
+        envGroup.add(clone);
+      });
+    }
+
+    // 在大场景上搭建双方时代基地与正在交锋行军的士兵
+    async function mountArmiesOnScene(era) {
+      const eraMap = {
+        1: { base: './models/era1/base_1.glb', soldier: './models/era1/caveman_1.glb', scale: 1.0 },
+        3: { base: './models/era3/base_3.glb', soldier: './models/era3/knight_1.glb', scale: 1.0 },
+        4: { base: './models/era4/base_4.glb', soldier: './models/era4/soldier_1.glb', scale: 1.0 },
+        5: { base: './models/era5/base_5.glb', soldier: './models/era5/trooper_1.glb', scale: 1.1 }
+      };
+
+      const info = eraMap[era] || eraMap[1];
+
+      // 1. 我方基地 (左翼 X: -24)
+      const allyGltf = await loadGLB(info.base);
+      const allyBase = allyGltf.scene;
+      allyBase.scale.setScalar(0.7);
+      allyBase.position.set(-24, 0, 0);
+      enableShadows(allyBase);
+      armiesGroup.add(allyBase);
+
+      // 2. 敌方基地 (右翼 X: +10, 镜像朝向我方)
+      const enemyGltf = await loadGLB(info.base);
+      const enemyBase = enemyGltf.scene;
+      enemyBase.scale.setScalar(0.7);
+      enemyBase.rotation.y = Math.PI;
+      enemyBase.position.set(10, 0, 0);
+      enableShadows(enemyBase);
+      armiesGroup.add(enemyBase);
+
+      // 3. 中央行军交战主力士兵 (带骨骼动作 Walk)
+      const soldierGltf = await loadGLB(info.soldier);
+      const soldier = soldierGltf.scene;
+      soldier.scale.setScalar(info.scale);
+      soldier.position.set(-7, 0, 0);
+      soldier.rotation.y = Math.PI / 2;
+      enableShadows(soldier);
+
+      if (soldierGltf.animations && soldierGltf.animations.length > 0) {
+        const mixer = new THREE.AnimationMixer(soldier);
+        const clip = soldierGltf.animations.find(c => c.name.toLowerCase().includes('walk') || c.name.toLowerCase().includes('attack')) || soldierGltf.animations[0];
+        mixer.clipAction(clip).play();
+        activeMixers.push(mixer);
+      }
+      armiesGroup.add(soldier);
+    }
+
+    function loadGLB(url) {
+      return new Promise((resolve, reject) => {
+        gltfLoader.load(url, resolve, undefined, reject);
+      });
+    }
+
+    function enableShadows(obj) {
+      obj.traverse(c => {
+        if (c.isMesh) {
+          c.castShadow = true;
+          c.receiveShadow = true;
+        }
+      });
+    }
+
+    // 摄像机机位
+    window.switchCamera = function(type) {
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`btn-view-${type}`).classList.add('active');
+
+      if (type === 'battle') {
+        camera.position.set(-8, 9, 22);
+        controls.target.set(-8, 1.2, 0);
+      } else if (type === 'orbit') {
+        camera.position.set(-8, 22, 34);
+        controls.target.set(-8, 0, 0);
+      } else if (type === 'close') {
+        camera.position.set(-7, 2.2, 5.5);
+        controls.target.set(-7, 1.0, 0);
+      }
+    };
+
+    function showLoading(text) {
+      const el = document.getElementById('loading-toast');
+      document.getElementById('loading-text').innerText = text;
+      el.style.opacity = '1';
+      el.style.display = 'flex';
+    }
+
+    function hideLoading() {
+      const el = document.getElementById('loading-toast');
+      el.style.opacity = '0';
+      setTimeout(() => el.style.display = 'none', 300);
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+
+      for (const m of activeMixers) m.update(delta);
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    init();
+  </script>
+</body>
+</html>

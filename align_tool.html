@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《战争进化史 3D》- 基地塔楼与防御塔 3D 手动拖拽对齐工具</title>
+  <style>
+    :root {
+      --bg-dark: #0a0d14;
+      --panel-bg: rgba(18, 24, 38, 0.94);
+      --card-bg: rgba(26, 35, 54, 0.88);
+      --border-color: #2b3954;
+      --accent-color: #38bdf8;
+      --accent-hover: #0284c7;
+      --success-color: #10b981;
+      --success-hover: #059669;
+      --warning-color: #f59e0b;
+      --danger-color: #ef4444;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* 顶部导航与操作栏 */
+    #top-bar {
+      height: 60px;
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .top-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .top-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .era-tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+    .era-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .era-tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .era-tab-btn.active {
+      background: var(--accent-color);
+      color: #04101e;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+
+    .top-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-success {
+      background: var(--success-color);
+      color: #fff;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
+    }
+    .btn-success:hover {
+      background: var(--success-hover);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.55);
+    }
+    .btn-secondary {
+      background: var(--card-bg);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: #23314d;
+      border-color: #3b4d70;
+    }
+
+    /* 主内容区 */
+    #main-container {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 3D 渲染视口 */
+    #viewport-container {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(circle at 50% 50%, #172136 0%, #080c14 100%);
+    }
+    #canvas-3d {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: default;
+    }
+
+    /* 悬浮工具栏 (视角、拖拽模式、辅助) */
+    #floating-toolbar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 20;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    .tool-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-right: 12px;
+      border-right: 1px solid var(--border-color);
+    }
+    .tool-group:last-child {
+      border-right: none;
+      padding-right: 0;
+    }
+    .tool-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-right: 2px;
+    }
+    .tool-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 5px 10px;
+      font-size: 0.78rem;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tool-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .tool-btn.active {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+      font-weight: 600;
+    }
+
+    /* 实时拖拽指示 HUD 浮标 */
+    #drag-hud {
+      position: absolute;
+      top: 76px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid var(--accent-color);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+      color: #fff;
+      padding: 8px 20px;
+      border-radius: 30px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      pointer-events: none;
+      z-index: 45;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      backdrop-filter: blur(10px);
+    }
+    #drag-hud.show {
+      display: flex;
+    }
+
+    /* 左下角手动微调操纵盘与深度推拉杠 */
+    #virtual-drag-pad {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px 14px;
+      z-index: 25;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      backdrop-filter: blur(12px);
+    }
+    .pad-title {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--accent-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .pad-controls-layout {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    /* 十字方向按钮组 */
+    .dpad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 34px);
+      grid-template-rows: repeat(3, 34px);
+      gap: 4px;
+      justify-items: center;
+      align-items: center;
+    }
+    .dpad-btn {
+      width: 34px;
+      height: 34px;
+      background: #1e293b;
+      border: 1px solid var(--border-color);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+    }
+    .dpad-btn:hover {
+      background: #334155;
+      border-color: var(--accent-color);
+    }
+    .dpad-btn:active {
+      background: var(--accent-color);
+      color: #04101e;
+      transform: scale(0.95);
+    }
+    .dpad-center {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-color);
+      font-size: 0.72rem;
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    /* Z 轴贴面推进大拉杠 */
+    .z-lever-column {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      justify-content: center;
+    }
+    .z-lever-btn {
+      padding: 8px 12px;
+      background: #1e293b;
+      border: 1px solid var(--border-color);
+      color: #f1f5f9;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .z-lever-btn:hover {
+      background: #334155;
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+    }
+    .z-lever-btn:active {
+      background: var(--accent-color);
+      color: #04101e;
+      transform: scale(0.96);
+    }
+    .z-lever-btn.push {
+      border-color: rgba(16, 185, 129, 0.5);
+      color: #34d399;
+    }
+    .z-lever-btn.push:hover {
+      background: rgba(16, 185, 129, 0.2);
+    }
+
+    /* 右侧控制参数面板 */
+    #sidebar-panel {
+      width: 420px;
+      background: var(--panel-bg);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 30;
+      backdrop-filter: blur(12px);
+      box-shadow: -8px 0 24px rgba(0, 0, 0, 0.3);
+    }
+    #sidebar-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .sidebar-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent-color);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* 折叠与功能卡片 */
+    .panel-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.25);
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-body {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* 选中对象专属精调高亮卡片 */
+    #active-inspector-card {
+      border: 1px solid var(--accent-color);
+      background: rgba(14, 30, 56, 0.85);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
+    }
+    #active-inspector-card .card-header {
+      background: rgba(56, 189, 248, 0.15);
+      color: #e0f2fe;
+    }
+
+    /* 参数调节行 */
+    .param-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .param-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+    }
+    .param-label {
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .param-val-input {
+      width: 75px;
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      color: var(--accent-color);
+      padding: 3px 6px;
+      font-size: 0.82rem;
+      font-family: monospace;
+      font-weight: 700;
+      border-radius: 4px;
+      text-align: right;
+    }
+    .param-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .param-slider {
+      flex: 1;
+      accent-color: var(--accent-color);
+      height: 4px;
+      cursor: pointer;
+    }
+    .stepper-btns {
+      display: flex;
+      gap: 3px;
+    }
+    .step-btn {
+      background: #1e293b;
+      border: 1px solid var(--border-color);
+      color: #cbd5e1;
+      padding: 2px 6px;
+      font-size: 0.7rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .step-btn:hover {
+      background: #334155;
+      color: #fff;
+    }
+
+    /* 构件列表项 */
+    .object-item {
+      padding: 8px 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .object-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: #3e4f73;
+    }
+    .object-item.selected {
+      border-color: var(--accent-color);
+      background: rgba(56, 189, 248, 0.12);
+    }
+    .object-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .object-coords {
+      font-size: 0.75rem;
+      font-family: monospace;
+      color: var(--text-muted);
+    }
+
+    /* 下拉选择器 */
+    .select-dropdown {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      color: #cbd5e1;
+      padding: 5px 8px;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* 代码预览与状态提示 */
+    .code-box {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: Consolas, Monaco, monospace;
+      font-size: 0.72rem;
+      color: #38bdf8;
+      max-height: 140px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* 全局提示 Toast */
+    #toast-msg {
+      position: fixed;
+      bottom: 24px;
+      right: 440px;
+      background: rgba(16, 185, 129, 0.95);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #toast-msg.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #toast-msg.error {
+      background: rgba(239, 68, 68, 0.95);
+    }
+
+    /* 加载遮罩 */
+    #loading-mask {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 13, 20, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-color);
+      font-size: 1rem;
+      font-weight: 600;
+      z-index: 40;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    #loading-mask.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/node_modules/three/build/three.module.js",
+        "three/addons/": "/node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <!-- 顶部控制条 -->
+  <header id="top-bar">
+    <div class="top-left">
+      <div class="top-title">
+        <span>🏰 基地塔楼与炮塔对齐工具</span>
+      </div>
+      <!-- 5 大时代切换标签 -->
+      <div class="era-tabs">
+        <button class="era-tab-btn" data-era="1">时代 1: 石穴</button>
+        <button class="era-tab-btn" data-era="2">时代 2: 古堡</button>
+        <button class="era-tab-btn active" data-era="3">时代 3: 教堂</button>
+        <button class="era-tab-btn" data-era="4">时代 4: 军营</button>
+        <button class="era-tab-btn" data-era="5">时代 5: 战舰</button>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <button class="btn btn-secondary" id="btn-copy-code">📋 复制代码</button>
+      <button class="btn btn-secondary" id="btn-export-json">📥 导出 JSON</button>
+      <button class="btn btn-secondary" id="btn-reset-era">🔄 重置当前时代</button>
+      <button class="btn btn-success" id="btn-save-all">💾 保存配置到游戏</button>
+    </div>
+  </header>
+
+  <!-- 主布局 -->
+  <div id="main-container">
+    <!-- 3D 渲染画布区 -->
+    <main id="viewport-container">
+      <div id="loading-mask">加载 3D 资产中...</div>
+      <div id="drag-hud">🖐️ 鼠标直接拖拽微调中</div>
+      <canvas id="canvas-3d"></canvas>
+
+      <!-- 悬浮工具条 -->
+      <div id="floating-toolbar">
+        <!-- 塔楼解锁层数 -->
+        <div class="tool-group">
+          <span class="tool-label">塔楼层数</span>
+          <button class="tool-btn" data-tier="1">1层</button>
+          <button class="tool-btn" data-tier="2">2层</button>
+          <button class="tool-btn" data-tier="3">3层</button>
+          <button class="tool-btn active" data-tier="4">4层满级</button>
+        </div>
+
+        <!-- 视角切换 -->
+        <div class="tool-group">
+          <span class="tool-label">观察视角</span>
+          <button class="tool-btn active" id="view-front" title="正交正视图：垂直观察靠近我们这一方的面">📐 正面(贴合度)</button>
+          <button class="tool-btn" id="view-side" title="侧平视：观察露天台面高度与开火前线">📐 侧视(战位)</button>
+          <button class="tool-btn" id="view-top" title="俯视：观察四周对称对齐">📐 俯视</button>
+          <button class="tool-btn" id="view-game" title="游戏实战角度">🎮 游戏战局视角</button>
+          <button class="tool-btn" id="view-free" title="3D 自由轨道旋转">🌐 3D 漫游</button>
+        </div>
+
+        <!-- 拖拽锁定轴 -->
+        <div class="tool-group">
+          <span class="tool-label">拖拽轴向</span>
+          <button class="tool-btn active" id="drag-axis-auto" title="随视角自动适应">🌟 智能视角</button>
+          <button class="tool-btn" id="drag-axis-x" title="仅限制左右 X 轴拖拽">↔️ 仅左右(X)</button>
+          <button class="tool-btn" id="drag-axis-y" title="仅限制上下 Y 轴拖拽">↕️ 仅高度(Y)</button>
+          <button class="tool-btn" id="drag-axis-z" title="仅限制前后 Z 轴对齐贴面">🔍 仅前后(Z·贴面)</button>
+        </div>
+
+        <!-- 辅助线显示 -->
+        <div class="tool-group">
+          <button class="tool-btn active" id="toggle-grid">网格</button>
+          <button class="tool-btn active" id="toggle-axes">坐标轴</button>
+          <button class="tool-btn" id="toggle-wireframe">线框透视</button>
+        </div>
+      </div>
+
+      <!-- 左下角直接手动微调操作盘与 Z 轴推拉杠 -->
+      <div id="virtual-drag-pad">
+        <div class="pad-title">
+          <span>🎮 手动拖拽 / 步进操纵盘</span>
+          <span id="pad-target-label" style="font-size:0.7rem; color:var(--text-muted);">Expansion1</span>
+        </div>
+        <div class="pad-controls-layout">
+          <!-- 十字方向微调按钮 -->
+          <div class="dpad-grid">
+            <div></div>
+            <button class="dpad-btn" id="dpad-up" title="向上 (Y+ 0.05m)">▲</button>
+            <div></div>
+            <button class="dpad-btn" id="dpad-left" title="向左 (X- 0.05m)">◀</button>
+            <div class="dpad-btn dpad-center">X / Y</div>
+            <button class="dpad-btn" id="dpad-right" title="向右 (X+ 0.05m)">▶</button>
+            <div></div>
+            <button class="dpad-btn" id="dpad-down" title="向下 (Y- 0.05m)">▼</button>
+            <div></div>
+          </div>
+
+          <!-- Z 轴贴面推进核心大按钮 (解决靠近我一面对齐) -->
+          <div class="z-lever-column">
+            <button class="z-lever-btn push" id="btn-z-push" title="向前推移 Z+ 0.05m，对齐正面">
+              <span>🔼 向前推 (Z+ 贴面)</span>
+            </button>
+            <button class="z-lever-btn" id="btn-z-pull" title="向后缩进 Z- 0.05m">
+              <span>🔽 向后拉 (Z- 远离)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 右侧参数面板 -->
+    <aside id="sidebar-panel">
+      <div id="sidebar-header">
+        <span class="sidebar-title">⚙️ 实时参数微调</span>
+        <span style="font-size:0.75rem; color:#94a3b8;">鼠标直拖模型 / 滚轮推拉Z轴</span>
+      </div>
+
+      <div id="sidebar-content">
+        <!-- 当前选中构件精调卡片 -->
+        <div class="panel-card" id="active-inspector-card">
+          <div class="card-header">
+            <span id="inspect-target-title">🎯 当前选中: Expansion 1</span>
+            <span id="inspect-target-type" style="font-size:0.72rem; color:var(--accent-color);">塔楼构件</span>
+          </div>
+          <div class="card-body">
+            <!-- X 轴位移 (左右) -->
+            <div class="param-row">
+              <div class="param-header">
+                <span class="param-label">X 轴 (左右偏移)</span>
+                <input type="number" step="0.01" class="param-val-input" id="inp-pos-x" value="0.00">
+              </div>
+              <div class="param-controls">
+                <input type="range" min="-3" max="3" step="0.01" class="param-slider" id="slider-pos-x">
+                <div class="stepper-btns">
+                  <button class="step-btn" data-axis="x" data-delta="-0.1">-0.1</button>
+                  <button class="step-btn" data-axis="x" data-delta="-0.01">-0.01</button>
+                  <button class="step-btn" data-axis="x" data-delta="0.01">+0.01</button>
+                  <button class="step-btn" data-axis="x" data-delta="0.1">+0.1</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Y 轴位移 (高度) -->
+            <div class="param-row">
+              <div class="param-header">
+                <span class="param-label">Y 轴 (上下高度)</span>
+                <input type="number" step="0.01" class="param-val-input" id="inp-pos-y" value="0.00">
+              </div>
+              <div class="param-controls">
+                <input type="range" min="-5" max="15" step="0.01" class="param-slider" id="slider-pos-y">
+                <div class="stepper-btns">
+                  <button class="step-btn" data-axis="y" data-delta="-0.1">-0.1</button>
+                  <button class="step-btn" data-axis="y" data-delta="-0.01">-0.01</button>
+                  <button class="step-btn" data-axis="y" data-delta="0.01">+0.01</button>
+                  <button class="step-btn" data-axis="y" data-delta="0.1">+0.1</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Z 轴位移 (前后 - 贴合我们这一面的核心) -->
+            <div class="param-row">
+              <div class="param-header">
+                <span class="param-label">Z 轴 (前后深度 · 贴合正面)</span>
+                <input type="number" step="0.01" class="param-val-input" id="inp-pos-z" value="0.00">
+              </div>
+              <div class="param-controls">
+                <input type="range" min="-3" max="3" step="0.01" class="param-slider" id="slider-pos-z">
+                <div class="stepper-btns">
+                  <button class="step-btn" data-axis="z" data-delta="-0.1">-0.1</button>
+                  <button class="step-btn" data-axis="z" data-delta="-0.01">-0.01</button>
+                  <button class="step-btn" data-axis="z" data-delta="0.01">+0.01</button>
+                  <button class="step-btn" data-axis="z" data-delta="0.1">+0.1</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 旋转 Y (针对炮塔) -->
+            <div class="param-row" id="row-rot-y" style="display:none;">
+              <div class="param-header">
+                <span class="param-label">Y 轴水平旋转 (角度)</span>
+                <input type="number" step="1" class="param-val-input" id="inp-rot-y" value="0">
+              </div>
+              <div class="param-controls">
+                <input type="range" min="0" max="360" step="5" class="param-slider" id="slider-rot-y">
+                <div class="stepper-btns">
+                  <button class="step-btn" data-axis="rot" data-delta="-45">-45°</button>
+                  <button class="step-btn" data-axis="rot" data-delta="45">+45°</button>
+                  <button class="step-btn" data-axis="rot" data-delta="180">180°</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 提示条 -->
+            <div style="font-size:0.75rem; color:#38bdf8; background:rgba(56,189,248,0.1); padding:6px 10px; border-radius:4px; line-height:1.4;">
+              💡 <b>鼠标操作秘籍</b>：<br>
+              • <b>鼠标左键直接点住模型拖动</b>：物体直接跟随鼠标移动！<br>
+              • <b>鼠标滚轮滑动</b>：直接向前/向后微调 Z 轴深度（贴合正面）！<br>
+              • <b>按住 Shift 拖动</b>：强制只调节前后深度 Z 轴！
+            </div>
+          </div>
+        </div>
+
+        <!-- 塔楼扩建构件 (Expansions) 列表卡片 -->
+        <div class="panel-card">
+          <div class="card-header">
+            <span>🗼 塔楼扩建构件 (Expansions)</span>
+            <span style="font-size:0.72rem; color:#94a3b8;">可上下堆叠与前后对齐</span>
+          </div>
+          <div class="card-body" id="expansions-list-container">
+            <!-- 动态生成 Expansion 1, 2, 3 条目 -->
+          </div>
+        </div>
+
+        <!-- 防御塔插槽 (Turret Slots) 列表卡片 -->
+        <div class="panel-card">
+          <div class="card-header">
+            <span>💥 防御塔插槽锚点 (Turret Slots)</span>
+            <span style="font-size:0.72rem; color:#94a3b8;">4 个战位锚点</span>
+          </div>
+          <div class="card-body" id="slots-list-container">
+            <!-- 动态生成 Slot 0, 1, 2, 3 条目 -->
+          </div>
+        </div>
+
+        <!-- 实时代码生成预览卡片 -->
+        <div class="panel-card">
+          <div class="card-header">
+            <span>📄 当前时代配置代码 (实时生成)</span>
+          </div>
+          <div class="card-body">
+            <div class="code-box" id="code-preview">// 正在计算配置...</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- 浮层 Toast -->
+  <div id="toast-msg">✅ 配置已成功保存并同步到 Base.js</div>
+
+  <!-- 主业务逻辑脚本 (ES Module) -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { TURRET_ANIMATIONS } from './src/config/TurretAnimations.js';
+    window.TURRET_ANIMATIONS = TURRET_ANIMATIONS;
+    const animClock = new THREE.Clock();
+    const activeAnimSlots = new Map();
+    window.THREE = THREE;
+    window.GLTFLoader = GLTFLoader;
+
+    // 全局时代防御塔型号映射
+    const ERA_TURRET_NAMES = {
+      1: [
+        { id: 'turret_1_1', name: '投石索防御塔 (Level 1)' },
+        { id: 'turret_1_2', name: '双联弹弓炮塔 (Level 2)' },
+        { id: 'turret_1_3', name: '原始抛石机 (Level 3)' }
+      ],
+      2: [
+        { id: 'turret_2_1', name: '重装弩炮塔 (Level 1)' },
+        { id: 'turret_2_2', name: '巨型床弩车 (Level 2)' },
+        { id: 'turret_2_3', name: '中世纪投石机 (Level 3)' }
+      ],
+      3: [
+        { id: 'turret_3_1', name: '轻型前膛加农炮 (Level 1)' },
+        { id: 'turret_3_2', name: '重装要塞加农炮 (Level 2)' },
+        { id: 'turret_3_3', name: '双联战列加农炮 (Level 3)' }
+      ],
+      4: [
+        { id: 'turret_4_1', name: '单管防空高射炮 (Level 1)' },
+        { id: 'turret_4_2', name: '双联速射突击炮 (Level 2)' },
+        { id: 'turret_4_3', name: '火箭巢发射阵列 (Level 3)' }
+      ],
+      5: [
+        { id: 'turret_5_1', name: '离子突击重炮 (Level 1)' },
+        { id: 'turret_5_2', name: '多联星轨加农炮 (Level 2)' },
+        { id: 'turret_5_3', name: '脉冲激光主炮 (Level 3)' }
+      ]
+    };
+
+    // 默认配置兜底
+    const DEFAULT_CONFIGS = {
+      "1": {
+        scale: 1.0,
+        slotOffsets: [
+          { x: -0.65, y: 3.27, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: -0.65, y: 4.43, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: -0.65, y: 5.59, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: -0.65, y: 6.74, z: 0.0, rotationY: 0, scale: 1.0 }
+        ],
+        expansionOffsets: {
+          Expansion1: { x: 0.0, y: 0.0, z: 0.0 },
+          Expansion2: { x: 0.0, y: 0.0, z: 0.0 },
+          Expansion3: { x: 0.0, y: 0.0, z: 0.0 }
+        }
+      },
+      "2": {
+        scale: 1.1,
+        slotOffsets: [
+          { x: 0.41, y: 3.64, z: 0.93, rotationY: 0, scale: 1.0 },
+          { x: 0.46, y: 4.44, z: 0.82, rotationY: 0, scale: 1.0 },
+          { x: 0.50, y: 5.38, z: 0.88, rotationY: 0, scale: 1.0 },
+          { x: 0.54, y: 6.61, z: 0.85, rotationY: 0, scale: 1.0 }
+        ],
+        expansionOffsets: {
+          Expansion1: { x: 0.01, y: -0.12, z: 0.0 },
+          Expansion2: { x: 0.0, y: -0.24, z: 0.0 },
+          Expansion3: { x: 0.01, y: -0.37, z: 0.0 }
+        }
+      },
+      "3": {
+        scale: 6.2,
+        slotOffsets: [
+          { x: -0.55, y: 4.41, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: -0.55, y: 5.81, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: -0.55, y: 7.17, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: -0.55, y: 8.54, z: 0.0, rotationY: 0, scale: 1.0 }
+        ],
+        expansionOffsets: {
+          Expansion1: { x: 0.0, y: 0.0, z: 0.25 },
+          Expansion2: { x: 0.0, y: 0.0, z: 0.25 },
+          Expansion3: { x: 0.0, y: 0.0, z: 0.25 }
+        }
+      },
+      "4": {
+        scale: 1.1,
+        slotOffsets: [
+          { x: 0.10, y: 4.28, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: 0.10, y: 5.75, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: 0.10, y: 7.05, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: 0.10, y: 8.95, z: 0.0, rotationY: 0, scale: 1.0 }
+        ],
+        expansionOffsets: {
+          Expansion1: { x: 0.0, y: 0.0, z: 0.0 },
+          Expansion2: { x: 0.0, y: 0.0, z: 0.0 },
+          Expansion3: { x: 0.0, y: 0.0, z: 0.0 }
+        }
+      },
+      "5": {
+        scale: 2.2,
+        slotOffsets: [
+          { x: -0.70, y: 3.00, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: -0.70, y: 4.38, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: -0.70, y: 6.07, z: 0.0, rotationY: 0, scale: 1.0 },
+          { x: -0.70, y: 8.59, z: 0.0, rotationY: 0, scale: 1.0 }
+        ],
+        expansionOffsets: {
+          Expansion1: { x: 0.0, y: 0.0, z: 0.0 },
+          Expansion2: { x: 0.0, y: 0.0, z: 0.0 },
+          Expansion3: { x: 0.0, y: 0.0, z: 0.0 }
+        }
+      }
+    };
+
+    // 应用状态
+    let allConfigs = JSON.parse(JSON.stringify(DEFAULT_CONFIGS));
+    let currentEra = 3;
+    let unlockedTier = 4;
+    let currentCameraView = 'front';
+    let dragAxisLock = 'auto'; // 'auto' | 'x' | 'y' | 'z'
+
+    // 当前选中目标
+    let selectedTarget = { type: 'expansion', name: 'Expansion1', index: null, object: null };
+
+    // 手动拖拽引擎状态
+    let isDirectDragging = false;
+    let dragStartPointer = { x: 0, y: 0 };
+    let dragStartConfig = { x: 0, y: 0, z: 0 };
+    let draggedTarget = null;
+
+    // Three.js 核心对象
+    let scene, camera, renderer, orbitControls;
+    let gridHelper, axesHelper, selectionHelperBox;
+    let baseGroup = null;
+    let baseNodes = {};
+    let slotAnchors = [];
+    window.slotAnchors = slotAnchors;
+    let turretEntities = [null, null, null, null];
+    window.turretEntities = turretEntities;
+    let slotSelections = ['turret_3_1', 'turret_3_2', 'turret_3_3', 'turret_3_3'];
+    window.slotSelections = slotSelections;
+    window.allConfigs = allConfigs;
+    let raycaster = new THREE.Raycaster();
+    let mouse = new THREE.Vector2();
+    let gltfLoader = new GLTFLoader();
+
+    // 初始化 Three.js 场景
+    function init3D() {
+      const container = document.getElementById('viewport-container');
+      const canvas = document.getElementById('canvas-3d');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0f1422);
+      window.scene = scene;
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 500);
+      setCameraView('front');
+
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+
+      // 灯光
+      const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xfff5e6, 2.0);
+      dirLight.position.set(20, 40, 20);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      scene.add(dirLight);
+
+      const backLight = new THREE.DirectionalLight(0x60a5fa, 0.8);
+      backLight.position.set(-20, 20, -20);
+      scene.add(backLight);
+
+      // 辅助网格与坐标轴
+      gridHelper = new THREE.GridHelper(30, 30, 0x38bdf8, 0x1e293b);
+      gridHelper.position.y = -0.01;
+      scene.add(gridHelper);
+
+      axesHelper = new THREE.AxesHelper(5);
+      axesHelper.position.set(0, 0.05, 0);
+      scene.add(axesHelper);
+
+      // 选中发光轮廓辅助框
+      selectionHelperBox = new THREE.BoxHelper(new THREE.Mesh(), 0x38bdf8);
+      selectionHelperBox.visible = false;
+      scene.add(selectionHelperBox);
+
+      // 轨道控制器 (用于背景漫游，点中物体拖拽时自动禁用)
+      orbitControls = new OrbitControls(camera, renderer.domElement);
+      orbitControls.enableDamping = true;
+      orbitControls.dampingFactor = 0.05;
+      orbitControls.target.set(0, 4.8, 0);
+
+      // 画布核心事件监听 (直接手动拖拽 + 滚轮推拉)
+      canvas.addEventListener('pointerdown', onCanvasPointerDown);
+      window.addEventListener('pointermove', onWindowPointerMove);
+      window.addEventListener('pointerup', onWindowPointerUp);
+      canvas.addEventListener('wheel', onCanvasWheel, { passive: false });
+
+      // 阻止右键菜单，允许右键拖拽 Z 轴深度
+      canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+      window.addEventListener('resize', onWindowResize);
+      animate();
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      orbitControls.update();
+
+      // 原版攻击动作逐帧更新与播放
+      const dt = animClock.getDelta();
+      for (const [slotIdx, st] of activeAnimSlots.entries()) {
+        st.animTime += dt;
+        st.anim.applyPose(st.mockTurret, Math.min(st.animTime, st.duration));
+        if (st.animTime >= st.duration) {
+          st.anim.resetPose(st.mockTurret);
+          activeAnimSlots.delete(slotIdx);
+        }
+      }
+
+      // 更新选中框
+      if (selectedTarget.object && selectionHelperBox.visible) {
+        selectionHelperBox.update();
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('viewport-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    // 视角快速切换
+    function setCameraView(viewType) {
+      if (!camera) return;
+      currentCameraView = viewType;
+      const target = new THREE.Vector3(0, 4.8, 0);
+
+      document.querySelectorAll('#floating-toolbar .tool-btn').forEach(btn => {
+        if (btn.id.startsWith('view-')) btn.classList.remove('active');
+      });
+      const activeBtn = document.getElementById(`view-${viewType}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      if (viewType === 'front') {
+        // 正交正面视感：正对 Z 轴正面（直观检查贴合平整度）
+        camera.position.set(0, 5.0, 24);
+        if (orbitControls) orbitControls.target.copy(target);
+      } else if (viewType === 'side') {
+        // 侧平视：直视战场侧面
+        camera.position.set(22, 5.0, 0);
+        if (orbitControls) orbitControls.target.copy(target);
+      } else if (viewType === 'top') {
+        // 俯视
+        camera.position.set(0, 26, 0.1);
+        if (orbitControls) orbitControls.target.copy(target);
+      } else if (viewType === 'game') {
+        // 游戏实机 45° 斜俯视角
+        camera.position.set(-8, 9, 20);
+        if (orbitControls) orbitControls.target.copy(target);
+      } else if (viewType === 'free') {
+        camera.position.set(12, 12, 16);
+        if (orbitControls) orbitControls.target.copy(target);
+      }
+      camera.lookAt(target);
+    }
+
+    // 加载当前时代的主基地模型
+    async function loadEraBase(eraId) {
+      showLoading(true);
+
+      // 清理旧要塞与炮塔
+      if (baseGroup) {
+        scene.remove(baseGroup);
+        baseGroup = null;
+      }
+      slotAnchors.forEach(a => scene.remove(a));
+      slotAnchors = [];
+      turretEntities = [null, null, null, null];
+      window.turretEntities = turretEntities;
+      baseNodes = {};
+
+      const eraCfg = allConfigs[eraId] || DEFAULT_CONFIGS[eraId];
+      const glbPath = `/models/era${eraId}/base_${eraId}.glb`;
+
+      try {
+        const gltf = await new Promise((resolve, reject) => {
+          gltfLoader.load(glbPath, resolve, undefined, reject);
+        });
+
+        baseGroup = gltf.scene;
+        baseGroup.scale.setScalar(eraCfg.scale || 1.0);
+        baseGroup.position.set(0, 0, 0);
+        baseGroup.rotation.y = 0;
+
+        baseGroup.traverse((node) => {
+          if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+          }
+          if (node.name) {
+            // 记录原始局部坐标
+            if (!node.userData.initialPos) {
+              node.userData.initialPos = node.position.clone();
+            }
+            if (node.name.toLowerCase().includes('expansion') || node.name.toLowerCase().includes('base')) {
+              baseNodes[node.name] = node;
+            }
+          }
+        });
+
+        // 应用 Expansion 用户位移微调
+        applyExpansionOffsets();
+        updateExpansionsVisibility();
+
+        scene.add(baseGroup);
+        window.baseGroup = baseGroup;
+        window.baseNodes = baseNodes;
+        window.allConfigs = allConfigs;
+        window.slotAnchors = slotAnchors;
+
+        // 初始化 4 个防御塔插槽锚点
+        await initSlotAnchors();
+
+        // 默认选中 Expansion 1
+        selectTarget('expansion', 'Expansion1');
+        updateUI();
+      } catch (err) {
+        console.error('加载基地模型失败:', err);
+        showToast('加载时代模型失败: ' + err.message, true);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // 应用 Expansion 位移微调
+    function applyExpansionOffsets() {
+      const eraCfg = allConfigs[currentEra];
+      if (!eraCfg || !eraCfg.expansionOffsets) return;
+
+      for (const [name, node] of Object.entries(baseNodes)) {
+        const off = eraCfg.expansionOffsets[name];
+        if (off && node.userData.initialPos) {
+          node.position.set(
+            node.userData.initialPos.x + (off.x || 0),
+            node.userData.initialPos.y + (off.y || 0),
+            node.userData.initialPos.z + (off.z || 0)
+          );
+        }
+      }
+    }
+
+    // 根据解锁层数控制显隐
+    function updateExpansionsVisibility() {
+      if (!baseGroup) return;
+      baseGroup.traverse((node) => {
+        const name = node.name || '';
+        if (name.startsWith('Turret')) {
+          node.visible = false;
+          return;
+        }
+        if (name.toLowerCase().includes('expansion')) {
+          if (name.includes('1')) {
+            node.visible = (unlockedTier >= 2);
+          } else if (name.includes('2')) {
+            node.visible = (unlockedTier >= 3);
+          } else if (name.includes('3')) {
+            node.visible = (unlockedTier >= 4);
+          }
+        }
+      });
+
+      // 炮塔插槽显隐
+      slotAnchors.forEach((anchor, i) => {
+        anchor.visible = (i < unlockedTier);
+      });
+    }
+
+    // 初始化插槽锚点与炮塔模型
+    async function initSlotAnchors() {
+      slotAnchors.forEach(a => scene.remove(a));
+      slotAnchors = [];
+
+      const eraCfg = allConfigs[currentEra];
+
+      for (let i = 0; i < 4; i++) {
+        const anchor = new THREE.Group();
+        anchor.name = `SlotAnchor_${i}`;
+        anchor.userData = { slotIndex: i };
+
+        // 准星指示物 (靶心圆环)
+        const ringGeom = new THREE.RingGeometry(0.15, 0.28, 32);
+        ringGeom.rotateX(-Math.PI / 2);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeom, ringMat);
+        ring.position.y = 0.02;
+        anchor.add(ring);
+
+        // 垂直高度指示虚线
+        const lineGeom = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(0, 0.45, 0)
+        ]);
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6 });
+        const line = new THREE.Line(lineGeom, lineMat);
+        anchor.add(line);
+
+        const off = eraCfg.slotOffsets[i] || { x: 0, y: 0, z: 0, rotationY: 0, scale: 1 };
+        anchor.position.set(off.x, off.y, off.z);
+        anchor.rotation.y = off.rotationY || 0;
+
+        scene.add(anchor);
+        slotAnchors.push(anchor);
+
+        // 加载防御塔
+        await reloadTurretForSlot(i);
+      }
+
+      window.slotAnchors = slotAnchors;
+      updateExpansionsVisibility();
+    }
+
+    // 全时代防御塔标准真实绑定点 (Mount Pivot / 齿轮安装座)
+    // 每一个炮塔模型内部的齿轮/安装支架以此坐标为原点 (0,0,0) 进行归零校准
+    const TURRET_MOUNT_PIVOTS = {
+      // 时代 1：原始石器
+      'turret_1_1': { x: 0, y: 0, z: 0 },
+      'turret_1_2': { x: 0, y: 0, z: 0 },
+      'turret_1_3': { x: 0.711, y: 0.891, z: -0.211 }, // 原始兽骨投石机安装基盘
+
+      // 时代 2：中世纪城堡
+      'turret_2_1': { x: 1.567, y: 0.636, z: -0.432 }, // 核心红圈：齿轮安装轴心 Gear Hub
+      'turret_2_2': { x: 1.804, y: 0.732, z: -0.497 }, // 核心红圈：四螺栓挂载板 Mounting Bracket
+      'turret_2_3': { x: -1.455, y: 0.394, z: 0.065 }, // 城防沸油倾泻机左侧塔楼安装支架 Cube002
+
+      // 时代 3：近代文艺复兴
+      'turret_3_1': { x: -0.436, y: 0.650, z: -0.340 }, // 滑膛炮架车轴齿轮 gear
+      'turret_3_2': { x: -0.555, y: 0.700, z: -0.353 }, // 青铜要塞炮安装齿轮 gear
+      'turret_3_3': { x: -0.701, y: 0.750, z: -0.392 }, // 高爆霰弹加农固定齿轮 gear
+
+      // 时代 4：现代工业战争
+      'turret_4_1': { x: -1.143, y: 0.472, z: 0.000 }, // 速射机枪塔回转底座 Turret1001
+      'turret_4_2': { x: 0.051, y: 0.750, z: 0.000 },  // 多联装火箭回转底盘 Cylinder004
+      'turret_4_3': { x: -1.168, y: 0.850, z: 0.000 }, // 双联重装防空高炮固定底座 Cube
+
+      // 时代 5：未来科幻
+      'turret_5_1': { x: -0.858, y: 0.759, z: 0.000 }, // 脉冲突击炮重装机体底座 Cylinder003
+      'turret_5_2': { x: -0.423, y: 0.800, z: -0.013 }, // 激光炮高能磁极悬浮底座 Sphere008_2
+      'turret_5_3': { x: -0.541, y: 0.905, z: -0.007 }  // 歼灭轨道炮重力基架 Sphere011_5
+    };
+    window.TURRET_MOUNT_PIVOTS = TURRET_MOUNT_PIVOTS;
+
+    // 重新加载指定槽位的防御塔模型 (严格以齿轮/支架绑定点对准锚点)
+    
+    // 原版攻击动作播放触发器
+    window.playSlotAttack = function(slotIdx) {
+      const container = turretEntities[slotIdx];
+      if (!container || !container.userData.anim) {
+        showToast('该插槽未挂载有效防御塔', true);
+        return;
+      }
+      const anim = container.userData.anim;
+      try {
+        const sfx = new Audio(`./audio/${anim.soundName}.mp3`);
+        sfx.volume = 0.5;
+        sfx.play().catch(() => {});
+      } catch (e) {}
+
+      activeAnimSlots.set(slotIdx, {
+        animTime: 0,
+        duration: anim.duration,
+        anim: anim,
+        mockTurret: {
+          config: { id: container.userData.turretId },
+          animatedParts: container.userData.animatedParts,
+          getPartByPath: container.userData.getPartByPath
+        }
+      });
+      showToast(`⚔️ 开始播放插槽 ${slotIdx} (${container.userData.turretId}) 原版攻击动作！`);
+    };
+
+    async function reloadTurretForSlot(slotIdx) {
+      const anchor = slotAnchors[slotIdx];
+      if (!anchor) return;
+
+      if (turretEntities[slotIdx]) {
+        anchor.remove(turretEntities[slotIdx]);
+        turretEntities[slotIdx] = null;
+      }
+
+      const turretId = slotSelections[slotIdx];
+      if (!turretId || turretId === 'none') return;
+
+      const glbPath = `/models/era${currentEra}/${turretId}.glb`;
+      try {
+        const gltf = await new Promise((resolve, reject) => {
+          gltfLoader.load(glbPath, resolve, undefined, reject);
+        });
+        const turretMesh = gltf.scene;
+        turretMesh.traverse((n) => {
+          if (n.isMesh) {
+            n.castShadow = true;
+            n.receiveShadow = true;
+          }
+        });
+
+        const TURRET_SCALES = {
+          'turret_1_1': 0.50,
+          'turret_1_2': 0.50,
+          'turret_1_3': 0.50,
+          'turret_2_1': 0.50,
+          'turret_2_2': 0.50,
+          'turret_2_3': 0.50,
+          'turret_3_1': 0.50,
+          'turret_3_2': 0.50,
+          'turret_3_3': 0.50,
+          'turret_4_1': 0.35,
+          'turret_4_2': 0.35,
+          'turret_4_3': 0.32,
+          'turret_5_1': 0.30,
+          'turret_5_2': 0.50,
+          'turret_5_3': 0.50
+        };
+        const s = TURRET_SCALES[turretId] || 1.0;
+
+        // 绝顶关键：创建绑定点容器组，使容器原点 (0,0,0) 与 anchor 靶心 1:1 重合
+        const turretContainer = new THREE.Group();
+        turretContainer.name = `Turret_${slotIdx}`;
+
+        // 取得该防御塔专属的真实绑定点 (Mount Pivot) 并在局部坐标系平移归零
+        const pivot = TURRET_MOUNT_PIVOTS[turretId] || { x: 0, y: 0, z: 0 };
+        turretMesh.position.set(-pivot.x, -pivot.y, -pivot.z);
+
+        // 缓存部件与初始变换以支持原版攻击动作测试
+        const animatedParts = {};
+        const subNodeMap = new Map();
+        turretMesh.traverse(n => {
+          n.userData.initPos = n.position.clone();
+          n.userData.initRot = { x: n.rotation.x, y: n.rotation.y, z: n.rotation.z };
+          animatedParts[n.name] = n;
+          subNodeMap.set(n.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase(), n);
+        });
+
+        turretContainer.userData.turretId = turretId;
+        turretContainer.userData.anim = TURRET_ANIMATIONS[turretId];
+        turretContainer.userData.animatedParts = animatedParts;
+        turretContainer.userData.subNodeMap = subNodeMap;
+        turretContainer.userData.getPartByPath = function(path) {
+          if (!path) return null;
+          if (animatedParts[path]) return animatedParts[path];
+          const normPath = path.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const leaf = path.split('/').pop().replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          if (subNodeMap.has(normPath)) return subNodeMap.get(normPath);
+          if (subNodeMap.has(leaf)) return subNodeMap.get(leaf);
+          if (turretId.startsWith('turret_3_') && (normPath === '1' || leaf === '1')) {
+            if (subNodeMap.has('1')) return subNodeMap.get('1');
+            if (subNodeMap.has('2')) return subNodeMap.get('2');
+            if (subNodeMap.has('3')) return subNodeMap.get('3');
+          }
+          if (turretId === 'turret_4_1' && leaf === 'handle') {
+            if (subNodeMap.has('turret1001')) return subNodeMap.get('turret1001');
+          }
+          if (turretId === 'turret_4_2' && leaf === 'base') {
+            if (subNodeMap.has('turret2')) return subNodeMap.get('turret2');
+          }
+          if (turretId === 'turret_5_1' && leaf === 'base') {
+            if (subNodeMap.has('turret1')) return subNodeMap.get('turret1');
+          }
+          if (turretId === 'turret_5_2') {
+            if (leaf === 'wingdown' && subNodeMap.has('turret2001')) return subNodeMap.get('turret2001');
+            if (leaf === 'wingup' && subNodeMap.has('turret2002')) return subNodeMap.get('turret2002');
+          }
+          if (turretId === 'turret_5_3') {
+            if (leaf === 'wingup' && subNodeMap.has('turret3001')) return subNodeMap.get('turret3001');
+            if (leaf === 'wingdown' && subNodeMap.has('turret3002')) return subNodeMap.get('turret3002');
+            if (leaf === 'handledown' && subNodeMap.has('turret3003')) return subNodeMap.get('turret3003');
+            if (leaf === 'handleup' && subNodeMap.has('turret3004')) return subNodeMap.get('turret3004');
+          }
+          return null;
+        };
+
+        turretContainer.add(turretMesh);
+        turretContainer.scale.setScalar(s);
+        const TURRET_ROT_OFFSETS = {
+          'turret_1_3': Math.PI
+        };
+        turretContainer.rotation.y = TURRET_ROT_OFFSETS[turretId] || 0;
+
+        anchor.add(turretContainer);
+        turretEntities[slotIdx] = turretContainer;
+      } catch (e) {
+        console.warn(`未找到防御塔资产: ${glbPath}`, e);
+      }
+    }
+    window.reloadTurretForSlot = reloadTurretForSlot;
+
+    // 选中目标处理
+    function selectTarget(type, name, index = null) {
+      selectedTarget = { type, name, index, object: null };
+
+      if (type === 'expansion') {
+        const node = baseNodes[name];
+        if (node) {
+          selectedTarget.object = node;
+          selectionHelperBox.setFromObject(node);
+          selectionHelperBox.visible = true;
+        }
+        document.getElementById('pad-target-label').textContent = name;
+      } else if (type === 'slot') {
+        const anchor = slotAnchors[index];
+        if (anchor) {
+          selectedTarget.object = anchor;
+          selectionHelperBox.setFromObject(anchor);
+          selectionHelperBox.visible = true;
+        }
+        document.getElementById('pad-target-label').textContent = `Slot ${index} (炮塔)`;
+      }
+
+      updateUI();
+    }
+
+    // ========================================================
+    // 核心直接鼠标手动拖拽系统 (Direct Mouse Dragging Engine)
+    // ========================================================
+
+    function onCanvasPointerDown(e) {
+      if (e.button !== 0 && e.button !== 2) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      let hitInfo = null;
+
+      // 1. 先检测插槽与炮塔
+      for (let i = 0; i < slotAnchors.length; i++) {
+        if (!slotAnchors[i].visible) continue;
+        const hits = raycaster.intersectObjects(slotAnchors[i].children, true);
+        if (hits.length > 0) {
+          hitInfo = { type: 'slot', name: `Slot ${i}`, index: i, object: slotAnchors[i] };
+          break;
+        }
+      }
+
+      // 2. 检测基地与塔楼构件
+      if (!hitInfo && baseGroup) {
+        const hits = raycaster.intersectObjects(baseGroup.children, true);
+        if (hits.length > 0) {
+          let curr = hits[0].object;
+          while (curr && curr !== baseGroup) {
+            if (baseNodes[curr.name]) {
+              hitInfo = { type: 'expansion', name: curr.name, index: null, object: baseNodes[curr.name] };
+              break;
+            }
+            curr = curr.parent;
+          }
+        }
+      }
+
+      // 如果点中了可拖拽构件
+      if (hitInfo) {
+        selectTarget(hitInfo.type, hitInfo.name, hitInfo.index);
+        isDirectDragging = true;
+        draggedTarget = hitInfo;
+
+        // 绝顶关键：立刻禁用相机旋转，完全交给鼠标拖拽！
+        orbitControls.enabled = false;
+        document.body.style.cursor = 'grabbing';
+
+        dragStartPointer.x = e.clientX;
+        dragStartPointer.y = e.clientY;
+
+        const eraCfg = allConfigs[currentEra];
+        if (hitInfo.type === 'expansion') {
+          const off = eraCfg.expansionOffsets[hitInfo.name] || { x: 0, y: 0, z: 0 };
+          dragStartConfig = { ...off };
+        } else {
+          const off = eraCfg.slotOffsets[hitInfo.index] || { x: 0, y: 0, z: 0 };
+          dragStartConfig = { ...off };
+        }
+
+        showDragHUD(true, `🖐️ 鼠标手动拖拽: ${hitInfo.name}`);
+        e.preventDefault();
+      }
+    }
+
+    function onWindowPointerMove(e) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      if (isDirectDragging && draggedTarget) {
+        const dx = e.clientX - dragStartPointer.x;
+        const dy = e.clientY - dragStartPointer.y;
+
+        const eraCfg = allConfigs[currentEra];
+        const baseScale = eraCfg.scale || 1.0;
+
+        // 灵敏度换算：屏幕像素转换为 3D 米单位
+        const sens = 0.015;
+
+        let deltaX = 0;
+        let deltaY = 0;
+        let deltaZ = 0;
+
+        const isShiftOrRight = e.shiftKey || (e.buttons === 2);
+        const lock = dragAxisLock;
+
+        if (lock === 'x') {
+          deltaX = dx * sens;
+        } else if (lock === 'y') {
+          deltaY = -dy * sens;
+        } else if (lock === 'z' || isShiftOrRight) {
+          // 垂直拖拽直接改变深度 (贴合正面)
+          deltaZ = -dy * sens;
+        } else {
+          // 智能随当前视角自动匹配最符合人眼直觉的轴向映射
+          if (currentCameraView === 'front') {
+            deltaX = dx * sens;
+            deltaY = -dy * sens;
+          } else if (currentCameraView === 'side') {
+            deltaZ = -dx * sens;
+            deltaY = -dy * sens;
+          } else if (currentCameraView === 'top') {
+            deltaX = dx * sens;
+            deltaZ = dy * sens;
+          } else {
+            // 游戏战局 45° 视角
+            deltaX = dx * sens * 0.9;
+            deltaY = -dy * sens * 0.7;
+            deltaZ = dx * sens * 0.4;
+          }
+        }
+
+        if (draggedTarget.type === 'expansion') {
+          const scaleDiv = (currentEra === 3 ? baseScale : 1.0);
+          const newX = parseFloat((dragStartConfig.x + deltaX / scaleDiv).toFixed(3));
+          const newY = parseFloat((dragStartConfig.y + deltaY / scaleDiv).toFixed(3));
+          const newZ = parseFloat((dragStartConfig.z + deltaZ / scaleDiv).toFixed(3));
+
+          if (!eraCfg.expansionOffsets[draggedTarget.name]) {
+            eraCfg.expansionOffsets[draggedTarget.name] = { x: 0, y: 0, z: 0 };
+          }
+          eraCfg.expansionOffsets[draggedTarget.name].x = newX;
+          eraCfg.expansionOffsets[draggedTarget.name].y = newY;
+          eraCfg.expansionOffsets[draggedTarget.name].z = newZ;
+          applyExpansionOffsets();
+
+          showDragHUD(true, `🗼 ${draggedTarget.name} | X:${newX.toFixed(2)} Y:${newY.toFixed(2)} <b>Z:${newZ.toFixed(2)} (贴面)</b>`);
+        } else if (draggedTarget.type === 'slot') {
+          const idx = draggedTarget.index;
+          const newX = parseFloat((dragStartConfig.x + deltaX).toFixed(3));
+          const newY = parseFloat((dragStartConfig.y + deltaY).toFixed(3));
+          const newZ = parseFloat((dragStartConfig.z + deltaZ).toFixed(3));
+
+          eraCfg.slotOffsets[idx].x = newX;
+          eraCfg.slotOffsets[idx].y = newY;
+          eraCfg.slotOffsets[idx].z = newZ;
+
+          const anchor = slotAnchors[idx];
+          if (anchor) anchor.position.set(newX, newY, newZ);
+
+          showDragHUD(true, `💥 插槽 ${idx} | X:${newX.toFixed(2)} Y:${newY.toFixed(2)} Z:${newZ.toFixed(2)}`);
+        }
+
+        updateInspectorInputs();
+        updateCodePreview();
+        e.preventDefault();
+      } else {
+        // 鼠标悬停变手型检测 (Hover Grab)
+        raycaster.setFromCamera(mouse, camera);
+        let isHover = false;
+        for (let i = 0; i < slotAnchors.length; i++) {
+          if (slotAnchors[i].visible && raycaster.intersectObjects(slotAnchors[i].children, true).length > 0) {
+            isHover = true;
+            break;
+          }
+        }
+        if (!isHover && baseGroup) {
+          const hits = raycaster.intersectObjects(baseGroup.children, true);
+          if (hits.length > 0) {
+            let curr = hits[0].object;
+            while (curr && curr !== baseGroup) {
+              if (baseNodes[curr.name]) {
+                isHover = true;
+                break;
+              }
+              curr = curr.parent;
+            }
+          }
+        }
+        renderer.domElement.style.cursor = isHover ? 'grab' : 'default';
+      }
+    }
+
+    function onWindowPointerUp(e) {
+      if (isDirectDragging) {
+        isDirectDragging = false;
+        draggedTarget = null;
+        orbitControls.enabled = true; // 恢复漫游
+        document.body.style.cursor = 'default';
+        showDragHUD(false);
+        updateUI();
+      }
+    }
+
+    // 鼠标滚轮直接微调 Z 轴前后深度 (贴合靠近我们这一面的核心功能)
+    function onCanvasWheel(e) {
+      if (!selectedTarget.object) return;
+
+      // 只要光标在模型上或者按住 Shift/Alt，滚轮即刻直接推拉深度
+      raycaster.setFromCamera(mouse, camera);
+      const hits = baseGroup ? raycaster.intersectObjects(baseGroup.children, true) : [];
+      const overModel = hits.length > 0 || e.shiftKey || e.altKey;
+
+      if (overModel) {
+        e.preventDefault();
+        const step = (e.deltaY < 0 ? 0.02 : -0.02) * (e.shiftKey ? 3 : 1);
+        adjustCurrentTargetAxis('z', step);
+      }
+    }
+
+    // 统一相对微调目标轴
+    function adjustCurrentTargetAxis(axis, delta) {
+      const eraCfg = allConfigs[currentEra];
+      if (selectedTarget.type === 'expansion') {
+        const name = selectedTarget.name;
+        if (!eraCfg.expansionOffsets[name]) eraCfg.expansionOffsets[name] = { x: 0, y: 0, z: 0 };
+        const newV = parseFloat((eraCfg.expansionOffsets[name][axis] + delta).toFixed(3));
+        eraCfg.expansionOffsets[name][axis] = newV;
+        applyExpansionOffsets();
+        showDragHUD(true, `🔍 微调 ${name} ${axis.toUpperCase()} 轴: ${newV.toFixed(2)}`);
+      } else if (selectedTarget.type === 'slot') {
+        const idx = selectedTarget.index;
+        const newV = parseFloat((eraCfg.slotOffsets[idx][axis] + delta).toFixed(3));
+        eraCfg.slotOffsets[idx][axis] = newV;
+        const anchor = slotAnchors[idx];
+        if (anchor) anchor.position[axis] = newV;
+        showDragHUD(true, `🔍 微调插槽 ${idx} ${axis.toUpperCase()} 轴: ${newV.toFixed(2)}`);
+      }
+
+      updateInspectorInputs();
+      updateCodePreview();
+      clearTimeout(window._hudTimer);
+      window._hudTimer = setTimeout(() => showDragHUD(false), 1400);
+    }
+
+    // 更新右侧面板 UI
+    function updateUI() {
+      updateInspectorHeader();
+      updateInspectorInputs();
+      renderExpansionsList();
+      renderSlotsList();
+      updateCodePreview();
+    }
+
+    function updateInspectorHeader() {
+      const titleEl = document.getElementById('inspect-target-title');
+      const typeEl = document.getElementById('inspect-target-type');
+      const rotRow = document.getElementById('row-rot-y');
+
+      if (selectedTarget.type === 'expansion') {
+        titleEl.textContent = `🎯 当前选中: ${selectedTarget.name}`;
+        typeEl.textContent = '塔楼扩建构件 (几何体微调)';
+        rotRow.style.display = 'none';
+      } else {
+        titleEl.textContent = `🎯 当前选中: 插槽 ${selectedTarget.index} (战位锚点)`;
+        typeEl.textContent = '防御塔基座插槽';
+        rotRow.style.display = 'flex';
+      }
+    }
+
+    function updateInspectorInputs() {
+      const eraCfg = allConfigs[currentEra];
+      let x = 0, y = 0, z = 0, rotY = 0;
+
+      if (selectedTarget.type === 'expansion') {
+        const off = eraCfg.expansionOffsets[selectedTarget.name] || { x: 0, y: 0, z: 0 };
+        x = off.x; y = off.y; z = off.z;
+      } else if (selectedTarget.type === 'slot') {
+        const off = eraCfg.slotOffsets[selectedTarget.index] || { x: 0, y: 0, z: 0, rotationY: 0 };
+        x = off.x; y = off.y; z = off.z;
+        rotY = Math.round((off.rotationY || 0) * (180 / Math.PI));
+      }
+
+      document.getElementById('inp-pos-x').value = x.toFixed(2);
+      document.getElementById('slider-pos-x').value = x;
+      document.getElementById('inp-pos-y').value = y.toFixed(2);
+      document.getElementById('slider-pos-y').value = y;
+      document.getElementById('inp-pos-z').value = z.toFixed(2);
+      document.getElementById('slider-pos-z').value = z;
+
+      document.getElementById('inp-rot-y').value = rotY;
+      document.getElementById('slider-rot-y').value = rotY;
+    }
+
+    // 渲染 Expansion 构件列表
+    function renderExpansionsList() {
+      const container = document.getElementById('expansions-list-container');
+      container.innerHTML = '';
+      const eraCfg = allConfigs[currentEra];
+
+      ['Expansion1', 'Expansion2', 'Expansion3'].forEach((name) => {
+        const off = eraCfg.expansionOffsets[name] || { x: 0, y: 0, z: 0 };
+        const isSel = (selectedTarget.type === 'expansion' && selectedTarget.name === name);
+
+        const item = document.createElement('div');
+        item.className = `object-item ${isSel ? 'selected' : ''}`;
+        item.innerHTML = `
+          <span class="object-name">🗼 ${name}</span>
+          <span class="object-coords">X:${off.x.toFixed(2)} Y:${off.y.toFixed(2)} <b>Z:${off.z.toFixed(2)}</b></span>
+        `;
+        item.onclick = () => selectTarget('expansion', name);
+        container.appendChild(item);
+      });
+    }
+
+    // 渲染 Turret Slots 列表
+    function renderSlotsList() {
+      const container = document.getElementById('slots-list-container');
+      container.innerHTML = '';
+      const eraCfg = allConfigs[currentEra];
+      const turretOpts = ERA_TURRET_NAMES[currentEra] || [];
+
+      for (let i = 0; i < 4; i++) {
+        const off = eraCfg.slotOffsets[i] || { x: 0, y: 0, z: 0 };
+        const isSel = (selectedTarget.type === 'slot' && selectedTarget.index === i);
+
+        const item = document.createElement('div');
+        item.className = `object-item ${isSel ? 'selected' : ''}`;
+        item.style.flexDirection = 'column';
+        item.style.alignItems = 'stretch';
+        item.style.gap = '6px';
+
+        const topRow = document.createElement('div');
+        topRow.style.display = 'flex';
+        topRow.style.justifyContent = 'space-between';
+        topRow.style.alignItems = 'center';
+        const layerNames = ['基座洞穴 (第1层)', '木架扩建1 (第2层)', '木架扩建2 (第3层)', '木架扩建3 (第4层)'];
+        topRow.innerHTML = `
+          <span class="object-name">💥 插槽 ${i} : ${layerNames[i]}</span>
+          <span class="object-coords">X:${off.x.toFixed(2)} Y:${off.y.toFixed(2)} Z:${off.z.toFixed(2)}</span>
+        `;
+        topRow.onclick = () => selectTarget('slot', `Slot ${i}`, i);
+
+        // 防御塔下拉选型
+        const select = document.createElement('select');
+        select.className = 'select-dropdown';
+        select.innerHTML = `
+          <option value="none">-- 不挂载/隐藏 --</option>
+          ${turretOpts.map(t => `<option value="${t.id}" ${slotSelections[i] === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+        `;
+        select.onchange = (e) => {
+          slotSelections[i] = e.target.value;
+          reloadTurretForSlot(i);
+        };
+
+        item.appendChild(topRow);
+        item.appendChild(select);
+
+        if (slotSelections[i] && slotSelections[i] !== 'none') {
+          const testBtn = document.createElement('button');
+          testBtn.className = 'btn btn-secondary';
+          testBtn.style.padding = '4px 8px';
+          testBtn.style.fontSize = '0.76rem';
+          testBtn.style.marginTop = '4px';
+          testBtn.innerHTML = '⚔️ 播放原版攻击动作';
+          testBtn.onclick = (e) => {
+            e.stopPropagation();
+            window.playSlotAttack(i);
+          };
+          item.appendChild(testBtn);
+        }
+
+        container.appendChild(item);
+      }
+    }
+
+    // 更新配置代码预览
+    function updateCodePreview() {
+      const previewEl = document.getElementById('code-preview');
+      const eraCfg = allConfigs[currentEra];
+      const jsonStr = JSON.stringify({ [currentEra]: eraCfg }, null, 2);
+      previewEl.textContent = jsonStr;
+    }
+
+    // 设置绝对数值
+    function setTargetAxis(axis, val) {
+      const eraCfg = allConfigs[currentEra];
+      val = parseFloat(val);
+
+      if (selectedTarget.type === 'expansion') {
+        const name = selectedTarget.name;
+        if (!eraCfg.expansionOffsets[name]) eraCfg.expansionOffsets[name] = { x: 0, y: 0, z: 0 };
+        eraCfg.expansionOffsets[name][axis] = parseFloat(val.toFixed(3));
+        applyExpansionOffsets();
+      } else if (selectedTarget.type === 'slot') {
+        const i = selectedTarget.index;
+        const anchor = slotAnchors[i];
+        if (axis === 'rot') {
+          const rad = (val * Math.PI) / 180;
+          eraCfg.slotOffsets[i].rotationY = parseFloat(rad.toFixed(3));
+          if (anchor) anchor.rotation.y = rad;
+        } else {
+          eraCfg.slotOffsets[i][axis] = parseFloat(val.toFixed(3));
+          if (anchor) anchor.position[axis] = val;
+        }
+      }
+
+      updateUI();
+    }
+
+    // 绑定工具栏与操纵盘事件
+    function bindEvents() {
+      // 时代切换
+      document.querySelectorAll('.era-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.era-tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentEra = parseInt(btn.dataset.era, 10);
+          slotSelections = [
+            `turret_${currentEra}_1`,
+            `turret_${currentEra}_2`,
+            `turret_${currentEra}_3`,
+            `turret_${currentEra}_3`
+          ];
+          loadEraBase(currentEra);
+        });
+      });
+
+      // 塔楼层数切换
+      document.querySelectorAll('#floating-toolbar button[data-tier]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#floating-toolbar button[data-tier]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          unlockedTier = parseInt(btn.dataset.tier, 10);
+          updateExpansionsVisibility();
+        });
+      });
+
+      // 观察视角预设
+      document.getElementById('view-front').onclick = () => setCameraView('front');
+      document.getElementById('view-side').onclick = () => setCameraView('side');
+      document.getElementById('view-top').onclick = () => setCameraView('top');
+      document.getElementById('view-game').onclick = () => setCameraView('game');
+      document.getElementById('view-free').onclick = () => setCameraView('free');
+
+      // 拖拽轴向锁定切换
+      const axisBtns = ['auto', 'x', 'y', 'z'];
+      axisBtns.forEach(axis => {
+        document.getElementById(`drag-axis-${axis}`).onclick = (e) => {
+          axisBtns.forEach(a => document.getElementById(`drag-axis-${a}`).classList.remove('active'));
+          e.target.classList.add('active');
+          dragAxisLock = axis;
+          showToast(`拖拽模式: ${e.target.textContent}`);
+        };
+      });
+
+      // 辅助线显示开关
+      document.getElementById('toggle-grid').onclick = (e) => {
+        gridHelper.visible = !gridHelper.visible;
+        e.target.classList.toggle('active', gridHelper.visible);
+      };
+      document.getElementById('toggle-axes').onclick = (e) => {
+        axesHelper.visible = !axesHelper.visible;
+        e.target.classList.toggle('active', axesHelper.visible);
+      };
+      document.getElementById('toggle-wireframe').onclick = (e) => {
+        const isWire = e.target.classList.toggle('active');
+        if (baseGroup) {
+          baseGroup.traverse(n => {
+            if (n.isMesh && n.material) n.material.wireframe = isWire;
+          });
+        }
+      };
+
+      // 左下角虚拟操纵盘按钮事件
+      document.getElementById('dpad-left').onclick = () => adjustCurrentTargetAxis('x', -0.05);
+      document.getElementById('dpad-right').onclick = () => adjustCurrentTargetAxis('x', 0.05);
+      document.getElementById('dpad-up').onclick = () => adjustCurrentTargetAxis('y', 0.05);
+      document.getElementById('dpad-down').onclick = () => adjustCurrentTargetAxis('y', -0.05);
+
+      // Z 轴贴面推进大按钮
+      document.getElementById('btn-z-push').onclick = () => adjustCurrentTargetAxis('z', 0.05);
+      document.getElementById('btn-z-pull').onclick = () => adjustCurrentTargetAxis('z', -0.05);
+
+      // 步进按钮微调
+      document.querySelectorAll('.step-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const axis = btn.dataset.axis;
+          const delta = parseFloat(btn.dataset.delta);
+          const inp = document.getElementById(axis === 'rot' ? 'inp-rot-y' : `inp-pos-${axis}`);
+          const currentVal = parseFloat(inp.value) || 0;
+          setTargetAxis(axis, currentVal + delta);
+        });
+      });
+
+      // 输入框与滑块双向绑定
+      ['x', 'y', 'z'].forEach(axis => {
+        const inp = document.getElementById(`inp-pos-${axis}`);
+        const slider = document.getElementById(`slider-pos-${axis}`);
+        inp.addEventListener('change', () => setTargetAxis(axis, inp.value));
+        slider.addEventListener('input', () => setTargetAxis(axis, slider.value));
+      });
+
+      const rotInp = document.getElementById('inp-rot-y');
+      const rotSlider = document.getElementById('slider-rot-y');
+      rotInp.addEventListener('change', () => setTargetAxis('rot', rotInp.value));
+      rotSlider.addEventListener('input', () => setTargetAxis('rot', rotSlider.value));
+
+      // 保存到游戏
+      document.getElementById('btn-save-all').onclick = saveConfiguration;
+
+      // 复制代码到剪贴板
+      document.getElementById('btn-copy-code').onclick = () => {
+        const code = `export const BASE_ERA_SPECS = ${JSON.stringify(allConfigs, null, 2)};`;
+        navigator.clipboard.writeText(code).then(() => {
+          showToast('📋 配置代码已成功复制到剪贴板！');
+        });
+      };
+
+      // 导出 JSON
+      document.getElementById('btn-export-json').onclick = () => {
+        const blob = new Blob([JSON.stringify(allConfigs, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'alignment_config.json';
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      // 重置当前时代
+      document.getElementById('btn-reset-era').onclick = () => {
+        allConfigs[currentEra] = JSON.parse(JSON.stringify(DEFAULT_CONFIGS[currentEra]));
+        applyExpansionOffsets();
+        initSlotAnchors();
+        updateUI();
+        showToast(`已重置时代 ${currentEra} 为默认参数`);
+      };
+
+      // 快捷键
+      window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        if (e.key === '1') setCameraView('front');
+        else if (e.key === '2') setCameraView('side');
+        else if (e.key === '3') setCameraView('top');
+        else if (e.key === '4') setCameraView('game');
+        else if (e.key === '5') setCameraView('free');
+        else if (e.key === 'ArrowUp') adjustCurrentTargetAxis('y', 0.02);
+        else if (e.key === 'ArrowDown') adjustCurrentTargetAxis('y', -0.02);
+        else if (e.key === 'ArrowLeft') adjustCurrentTargetAxis('x', -0.02);
+        else if (e.key === 'ArrowRight') adjustCurrentTargetAxis('x', 0.02);
+        else if (e.key === 'PageUp') adjustCurrentTargetAxis('z', 0.02);
+        else if (e.key === 'PageDown') adjustCurrentTargetAxis('z', -0.02);
+      });
+    }
+
+    // 保存配置到后端服务器
+    async function saveConfiguration() {
+      const btn = document.getElementById('btn-save-all');
+      btn.textContent = '⏳ 保存中...';
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/save_alignment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            era: currentEra,
+            eraSpecs: allConfigs
+          })
+        });
+
+        const res = await resp.json();
+        if (res.success) {
+          showToast('🎉 保存成功！参数已写入 Base.js，刷新游戏窗口立即见效！');
+        } else {
+          showToast('❌ 保存失败: ' + (res.error || '未知错误'), true);
+        }
+      } catch (err) {
+        showToast('❌ 保存请求失败: ' + err.message, true);
+      } finally {
+        btn.textContent = '💾 保存配置到游戏';
+        btn.disabled = false;
+      }
+    }
+
+    // 获取远程最新配置
+    async function fetchInitialConfig() {
+      try {
+        const resp = await fetch('/api/get_alignment');
+        if (resp.ok) {
+          const remoteCfg = await resp.json();
+          allConfigs = Object.assign({}, DEFAULT_CONFIGS, remoteCfg);
+        }
+      } catch (e) {
+        console.warn('使用本地默认配置', e);
+      }
+    }
+
+    // 辅助提示函数
+    function showToast(text, isError = false) {
+      const toast = document.getElementById('toast-msg');
+      toast.textContent = text;
+      toast.className = isError ? 'error show' : 'show';
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => {
+        toast.className = '';
+      }, 3500);
+    }
+
+    function showDragHUD(show, text = '') {
+      const hud = document.getElementById('drag-hud');
+      if (show) {
+        hud.innerHTML = text;
+        hud.classList.add('show');
+      } else {
+        hud.classList.remove('show');
+      }
+    }
+
+    function showLoading(show) {
+      const mask = document.getElementById('loading-mask');
+      if (show) mask.classList.add('show');
+      else mask.classList.remove('show');
+    }
+
+    // 入口执行
+    async function main() {
+      init3D();
+      bindEvents();
+      await fetchInitialConfig();
+      await loadEraBase(currentEra);
+    }
+
+    main();
+  </script>
+</body>
+</html>

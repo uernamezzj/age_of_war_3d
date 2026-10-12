@@ -1,0 +1,32 @@
+# Blender 4.2.16 LTS MTL File: 'None'
+# www.blender.org
+
+newmtl beard
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.107022 0.076185 0.051269
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+
+newmtl shirt1
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd ../../AgeOfWarRemake/Assets/Resources/Meshes/Units/Projects/Age of War/textures/shirt1.png
+
+newmtl skin
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.797461 0.449570 0.336972
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2

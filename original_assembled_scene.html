@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《战争进化史 3D》原版 Unity 森林峡谷完整大场景 (1:1 真实拼装还原)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* 顶部信息面板 */
+    #header-hud {
+      position: absolute;
+      top: 16px;
+      left: 20px;
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 12px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    .hud-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hud-subtitle {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* 视角控制栏 */
+    #view-controls {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      z-index: 20;
+      display: flex;
+      gap: 10px;
+    }
+    .view-btn {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #cbd5e1;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .view-btn:hover { background: #334155; color: #fff; border-color: #38bdf8; }
+    .view-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+
+    /* 统计清单浮窗 */
+    #stat-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.6;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    .stat-badge {
+      font-weight: 700;
+      color: #38bdf8;
+    }
+
+    #loading-toast {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      border-radius: 12px;
+      padding: 16px 28px;
+      font-size: 14px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      transition: opacity 0.3s;
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #38bdf8;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./node_modules/three/build/three.module.js",
+        "three/addons/": "./node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="header-hud">
+    <div class="hud-title">🌲 原版 Unity 森林峡谷真实组装大场景</div>
+    <div class="hud-subtitle">1:1 读取 Unity Environment.prefab（117个物件精准空间坐标）+ 倾斜地貌 + 两军要塞对峙</div>
+  </div>
+
+  <div id="view-controls">
+    <button class="view-btn active" id="btn-view-game" onclick="switchView('game')">🎮 游戏横版推线视角</button>
+    <button class="view-btn" id="btn-view-free" onclick="switchView('free')">🌐 360° 自由上帝视角</button>
+    <button class="view-btn" id="btn-view-front" onclick="switchView('front')">⚔️ 战道前沿交火视角</button>
+  </div>
+
+  <div id="stat-panel">
+    <div><b>场景真实组装资产清单 (Unity 原版 117 物件)：</b></div>
+    <div>• 草丛集群 (Grasses)：<span class="stat-badge">33 处</span></div>
+    <div>• 灌木植被 (Bushes)：<span class="stat-badge">32 簇</span></div>
+    <div>• 阔叶大树 (Trees)：<span class="stat-badge">19 棵</span></div>
+    <div>• 参天针叶松 (Pines)：<span class="stat-badge">10 棵</span></div>
+    <div>• 碎石砾堆 (Pebbles)：<span class="stat-badge">15 处</span></div>
+    <div>• 远景巨石 (Rocks) 与 倒木枯桩 (Trunks)：<span class="stat-badge">8 处视差背景</span></div>
+  </div>
+
+  <div id="loading-toast">
+    <div class="spinner"></div>
+    <span id="loading-text">正在从 Unity 预制体还原 117 个场景物件...</span>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    let scene, camera, renderer, controls;
+    const gltfLoader = new GLTFLoader();
+
+    // 资产映射表 (Unity Prefab -> GLB)
+    const ASSET_GLB_MAP = {
+      'rock_1': './models/environment/rock_1.glb',
+      'trunk_1': './models/environment/trunk_1.glb',
+      'pine': './models/environment/pine_1.glb',
+      'tree': './models/environment/tree_1.glb',
+      'bush': './models/environment/bush_1.glb',
+      'grass': './models/era1/grasses.glb',
+      'pebble': './models/era1/pebble.glb'
+    };
+
+    const loadedPrototypes = {};
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x87ceeb); // 蓝天
+      scene.fog = new THREE.Fog(0x9fc5e8, 20, 65); // 原版线性环境雾
+
+      // 默认推线 2.5D 横版相机位置 (俯视倾角)
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+      camera.position.set(-8, 9, 22);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+      container.appendChild(renderer.domElement);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.target.set(-8, 1.2, 0);
+      controls.maxPolarAngle = Math.PI / 2 - 0.02;
+
+      // 自然天光与太阳直射阴影
+      const hemiLight = new THREE.HemisphereLight(0xffffff, 0x446633, 0.75);
+      scene.add(hemiLight);
+
+      const sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
+      sunLight.position.set(-15, 30, 20);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 2048;
+      sunLight.shadow.mapSize.height = 2048;
+      sunLight.shadow.camera.near = 0.5;
+      sunLight.shadow.camera.far = 80;
+      sunLight.shadow.camera.left = -40;
+      sunLight.shadow.camera.right = 40;
+      sunLight.shadow.camera.top = 25;
+      sunLight.shadow.camera.bottom = -25;
+      sunLight.shadow.bias = -0.0004;
+      scene.add(sunLight);
+
+      // 构建 Unity 原版倾斜地面与中轴行军路
+      buildUnityGround();
+
+      // 构建双方基地
+      buildBases();
+
+      // 组装 Unity 117 个场景物件
+      loadAndAssembleScene();
+
+      window.addEventListener('resize', onResize);
+      animate();
+    }
+
+    // 构建原版 Unity 地面 (带 -11.76° 倾斜角)
+    function buildUnityGround() {
+      const groundGroup = new THREE.Group();
+
+      // 地面纹理
+      const textureLoader = new THREE.TextureLoader();
+      const groundTex = textureLoader.load('./AgeOfWarRemake/Assets/Resources/Prefabs/Environment/rocky_terrain_02_diff_1k.jpg');
+      groundTex.wrapS = THREE.RepeatWrapping;
+      groundTex.wrapT = THREE.RepeatWrapping;
+      groundTex.repeat.set(12, 4);
+
+      // 主倾斜大地 (Unity Ground 设定: Scale 60x10, Rotation X: -11.76°)
+      const groundGeo = new THREE.PlaneGeometry(90, 25);
+      const groundMat = new THREE.MeshStandardMaterial({
+        map: groundTex,
+        roughness: 0.9,
+        metalness: 0.05
+      });
+      const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+      groundMesh.rotation.x = -Math.PI / 2 + (-11.76 * Math.PI / 180);
+      groundMesh.position.set(-10, -0.1, -0.27);
+      groundMesh.receiveShadow = true;
+      groundGroup.add(groundMesh);
+
+      // 广阔远景补底
+      const farGroundGeo = new THREE.PlaneGeometry(160, 60);
+      const farGroundMat = new THREE.MeshStandardMaterial({
+        color: 0x3d5a2b, // 远景深绿平原
+        roughness: 0.95
+      });
+      const farGround = new THREE.Mesh(farGroundGeo, farGroundMat);
+      farGround.rotation.x = -Math.PI / 2;
+      farGround.position.set(-10, -0.8, -10);
+      farGround.receiveShadow = true;
+      groundGroup.add(farGround);
+
+      scene.add(groundGroup);
+    }
+
+    // 载入双方大本营
+    async function buildBases() {
+      try {
+        // 我方大本营 (左侧 X: -26)
+        const allyGltf = await loadGLB('./models/era1/base_1.glb');
+        const allyBase = allyGltf.scene;
+        allyBase.scale.setScalar(0.7);
+        allyBase.position.set(-26, 0, 0);
+        enableShadows(allyBase);
+        scene.add(allyBase);
+
+        // 敌方大本营 (右侧 X: +10, 镜像面对我方)
+        const enemyGltf = await loadGLB('./models/era1/base_1.glb');
+        const enemyBase = enemyGltf.scene;
+        enemyBase.scale.setScalar(0.7);
+        enemyBase.rotation.y = Math.PI;
+        enemyBase.position.set(10, 0, 0);
+        enableShadows(enemyBase);
+        scene.add(enemyBase);
+      } catch (e) {
+        console.warn("Base loading error:", e);
+      }
+    }
+
+    // 读取并组装 117 个物件
+    async function loadAndAssembleScene() {
+      try {
+        // 1. 获取 JSON
+        const res = await fetch('./src/config/original_forest_scene.json');
+        const items = await res.json();
+
+        // 2. 预载入全部原型模型
+        const assetKeys = Object.keys(ASSET_GLB_MAP);
+        for (const k of assetKeys) {
+          const gltf = await loadGLB(ASSET_GLB_MAP[k]);
+          enableShadows(gltf.scene);
+          loadedPrototypes[k] = gltf.scene;
+        }
+
+        // 3. 根据 Unity 提取的世界坐标 1:1 摆放
+        const envGroup = new THREE.Group();
+
+        items.forEach(item => {
+          const proto = loadedPrototypes[item.asset];
+          if (!proto) return;
+
+          const clone = proto.clone(true);
+          
+          // Unity 坐标系映射到 Three.js (Unity: X 右, Y 上, Z 前)
+          clone.position.set(item.pos[0], item.pos[1], item.pos[2]);
+
+          // 保持真实缩放
+          clone.scale.set(
+            Math.abs(item.scale[0]) * 0.8,
+            Math.abs(item.scale[1]) * 0.8,
+            Math.abs(item.scale[2]) * 0.8
+          );
+
+          // 旋转角度
+          if (item.euler) {
+            clone.rotation.set(
+              item.euler[0] * Math.PI / 180,
+              item.euler[1] * Math.PI / 180,
+              item.euler[2] * Math.PI / 180
+            );
+          }
+
+          enableShadows(clone);
+          envGroup.add(clone);
+        });
+
+        scene.add(envGroup);
+
+        document.getElementById('loading-toast').style.opacity = '0';
+        setTimeout(() => document.getElementById('loading-toast').style.display = 'none', 300);
+
+      } catch (err) {
+        console.error("组装场景失败:", err);
+      }
+    }
+
+    function loadGLB(url) {
+      return new Promise((resolve, reject) => {
+        gltfLoader.load(url, resolve, undefined, reject);
+      });
+    }
+
+    function enableShadows(obj) {
+      obj.traverse(c => {
+        if (c.isMesh) {
+          c.castShadow = true;
+          c.receiveShadow = true;
+        }
+      });
+    }
+
+    // 视角切换
+    window.switchView = function(viewType) {
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`btn-view-${viewType}`).classList.add('active');
+
+      if (viewType === 'game') {
+        // 经典推线横版 2.5D
+        camera.position.set(-8, 9, 22);
+        controls.target.set(-8, 1.2, 0);
+      } else if (viewType === 'free') {
+        // 宏观上帝全景
+        camera.position.set(-8, 25, 38);
+        controls.target.set(-8, 0, 0);
+      } else if (viewType === 'front') {
+        // 交战前线特写
+        camera.position.set(-8, 2.5, 7);
+        controls.target.set(-8, 1.0, 0);
+      }
+    };
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    init();
+  </script>
+</body>
+</html>

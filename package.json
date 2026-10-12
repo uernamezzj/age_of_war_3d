@@ -1,0 +1,13 @@
+{
+  "name": "age_of_war_3d",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@ruffle-rs/ruffle": "^0.7.1",
+    "three": "^0.186.1"
+  }
+}

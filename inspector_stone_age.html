@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《战争进化史 3D》第一阶段（原始石器时代）3D 模型品质审查检视台</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* Top Header HUD */
+    .top-bar {
+      position: absolute;
+      top: 16px;
+      left: 20px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .era-badge {
+      background: linear-gradient(135deg, #e07a5f, #b23a1e);
+      color: #fff;
+      font-weight: 800;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 15px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 16px rgba(224, 122, 95, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .inspector-title {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+    .inspector-title span {
+      color: #38bdf8;
+      font-weight: bold;
+    }
+
+    /* Left Model Selector */
+    .left-panel {
+      position: absolute;
+      top: 76px;
+      left: 20px;
+      z-index: 10;
+      width: 320px;
+      max-height: calc(100vh - 170px);
+      overflow-y: auto;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+    }
+    .left-panel::-webkit-scrollbar { width: 6px; }
+    .left-panel::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+    .panel-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      margin: 12px 0 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .panel-section-title:first-child { margin-top: 0; }
+
+    .unit-select-btn {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f1f5f9;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .unit-select-btn:hover {
+      background: #253349;
+      border-color: #38bdf8;
+      transform: translateX(3px);
+    }
+    .unit-select-btn.active {
+      background: linear-gradient(135deg, rgba(224, 122, 95, 0.35), rgba(15, 23, 42, 0.85));
+      border-color: #e07a5f;
+      box-shadow: 0 0 16px rgba(224, 122, 95, 0.3);
+    }
+    .btn-main-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .btn-sub-row {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .tag-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #334155;
+      color: #38bdf8;
+    }
+    .tag-badge.special { background: #b45309; color: #fef08a; }
+
+    /* Right QA Report Card */
+    .right-panel {
+      position: absolute;
+      top: 76px;
+      right: 20px;
+      z-index: 10;
+      width: 350px;
+      max-height: calc(100vh - 170px);
+      overflow-y: auto;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+    }
+    .right-panel::-webkit-scrollbar { width: 6px; }
+    .right-panel::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+    .report-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .qa-score {
+      background: #10b981;
+      color: #042f2e;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 7px;
+      color: #94a3b8;
+    }
+    .info-val {
+      color: #f1f5f9;
+      font-weight: 600;
+      font-family: monospace;
+    }
+    .report-box {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 10px;
+      border: 1px solid #334155;
+    }
+    .report-box h4 {
+      font-size: 12px;
+      color: #e07a5f;
+      margin-bottom: 6px;
+    }
+    .report-box p {
+      font-size: 12px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+    .clip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .clip-pill {
+      font-size: 11px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: #38bdf8;
+    }
+
+    /* Top Right Toolbar */
+    .top-toolbar {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .tool-btn {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #94a3b8;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .tool-btn:hover { color: #fff; border-color: #38bdf8; }
+    .tool-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+
+    /* Bottom Control Bar */
+    .bottom-dock {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 10px 20px;
+      border-radius: 16px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .action-btn {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f1f5f9;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .action-btn:hover {
+      background: #334155;
+      border-color: #38bdf8;
+    }
+    .action-btn.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+    .action-btn.btn-attack {
+      border-color: #f59e0b;
+      color: #fef3c7;
+    }
+    .action-btn.btn-attack.active {
+      background: #d97706;
+    }
+    .action-btn.btn-death {
+      border-color: #ef4444;
+      color: #fee2e2;
+    }
+    .action-btn.btn-death.active {
+      background: #dc2626;
+    }
+    .speed-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #94a3b8;
+      padding-left: 10px;
+      border-left: 1px solid #334155;
+    }
+    .speed-ctrl input {
+      width: 70px;
+      cursor: pointer;
+    }
+
+    /* Loading Overlay */
+    #loading {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(9, 13, 22, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      transition: opacity 0.3s;
+    }
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #334155;
+      border-top-color: #e07a5f;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+  <script src="./libs/three.min.js"></script>
+  <script src="./libs/OrbitControls.js"></script>
+  <script src="./libs/fflate.min.js"></script>
+  <script src="./libs/FBXLoader.js"></script>
+  <script src="./libs/GLTFLoader.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- Top Header -->
+  <div class="top-bar">
+    <div class="era-badge">🔥 纪元 I：原始石器时代 (Stone Age)</div>
+    <div class="inspector-title">3D 模型审查检视台 · 正在检视：<span id="cur-model-title">棒槌野人</span></div>
+  </div>
+
+  <!-- Top Right Toolbar -->
+  <div class="top-toolbar">
+    <!-- Camera Modes -->
+    <button class="tool-btn active" id="cam-side" onclick="setCamera('side')">🎥 横版战斗视</button>
+    <button class="tool-btn" id="cam-iso" onclick="setCamera('iso')">📐 45°俯视</button>
+    <button class="tool-btn" id="cam-chase" onclick="setCamera('chase')">🔍 特写视</button>
+    <button class="tool-btn" id="cam-orbit" onclick="setCamera('orbit')">🌐 360°自由</button>
+    
+    <div style="width:1px; height:20px; background:#334155; margin:0 4px;"></div>
+    
+    <!-- Render Inspection Switches -->
+    <button class="tool-btn" id="btn-wireframe" onclick="toggleWireframe()">🕸️ 线框拓扑</button>
+    <button class="tool-btn" id="btn-rotate" onclick="toggleAutoRotate()">🔄 展台自转</button>
+    <button class="tool-btn" id="btn-light" onclick="cycleLighting()">☀️ 烈日荒野</button>
+  </div>
+
+  <!-- Left Model Selector -->
+  <div class="left-panel">
+    <div class="panel-section-title">⚔️ 石器时代作战军团 (Combat Units)</div>
+    
+    <button class="unit-select-btn active" onclick="switchUnit('caveman_1')">
+      <div class="btn-main-row">
+        <span>🪓 棒槌野人 (Club Savage)</span>
+        <span class="tag-badge">近战 $15</span>
+      </div>
+      <div class="btn-sub-row">高攻速肉搏敢死队 · 手持粗制木棒/石斧</div>
+    </button>
+
+    <button class="unit-select-btn" onclick="switchUnit('caveman_2')">
+      <div class="btn-main-row">
+        <span>🎯 弹弓投石手 (Slingshot)</span>
+        <span class="tag-badge">远程 $25</span>
+      </div>
+      <div class="btn-sub-row">投掷碎石索 · 握持弹弓拉弓射击</div>
+    </button>
+
+    <button class="unit-select-btn" onclick="switchUnit('caveman_3')">
+      <div class="btn-main-row">
+        <span>🦕 原版复刻恐龙骑手 (Rider)</span>
+        <span class="tag-badge">原版 $100</span>
+      </div>
+      <div class="btn-sub-row">MrPio 经典复刻骑兵一体模型</div>
+    </button>
+
+
+    <div class="panel-section-title">🏰 防御体系与要塞大本营 (Defenses)</div>
+
+    <button class="unit-select-btn" onclick="switchUnit('turret_1_1')">
+      <div class="btn-main-row">
+        <span>🏹 1阶单发弹弓塔 (Tier 1)</span>
+        <span class="tag-badge">哨塔 $100</span>
+      </div>
+      <div class="btn-sub-row">原始巨木结构 · 向入侵者抛射碎石</div>
+    </button>
+
+    <button class="unit-select-btn" onclick="switchUnit('turret_1_2')">
+      <div class="btn-main-row">
+        <span>🏹 2阶双联投石塔 (Tier 2)</span>
+        <span class="tag-badge">防御塔 $200</span>
+      </div>
+      <div class="btn-sub-row">强化石架双重连发抛石装置</div>
+    </button>
+
+    <button class="unit-select-btn" onclick="switchUnit('turret_1_3')">
+      <div class="btn-main-row">
+        <span>🏹 3阶重型巨石投石塔 (Tier 3)</span>
+        <span class="tag-badge">终极防御 $400</span>
+      </div>
+      <div class="btn-sub-row">高台巨型配重式石炮轰击</div>
+    </button>
+
+    <button class="unit-select-btn" onclick="switchUnit('base_1')">
+      <div class="btn-main-row">
+        <span>🌋 史前要塞基地洞穴 (Base)</span>
+        <span class="tag-badge">大本营</span>
+      </div>
+      <div class="btn-sub-row">巨岩洞窟壁垒 · 兵力生产要塞大门</div>
+    </button>
+
+    <button class="unit-select-btn" onclick="switchUnit('special_1')">
+      <div class="btn-main-row">
+        <span>☄️ 天降流星雨陨石 (Meteor)</span>
+        <span class="tag-badge special">终极大招</span>
+      </div>
+      <div class="btn-sub-row">全屏毁灭打击 · 烈焰撞击陨石实体</div>
+    </button>
+
+    <div class="panel-section-title">🪵 专属武器与弹药特写 (Weapons)</div>
+
+    <button class="unit-select-btn" onclick="switchUnit('club')">
+      <div class="btn-main-row">
+        <span>🪵 粗制原始木棒 (Club)</span>
+        <span class="tag-badge">近战武器</span>
+      </div>
+      <div class="btn-sub-row">天然原木雕琢钝器 · 野人主力武器</div>
+    </button>
+
+    <button class="unit-select-btn" onclick="switchUnit('sling')">
+      <div class="btn-main-row">
+        <span>🪃 史前拉索弹弓 (Sling)</span>
+        <span class="tag-badge">远程武器</span>
+      </div>
+      <div class="btn-sub-row">皮条与木叉绑扎弹弓 · 远程投射索</div>
+    </button>
+
+    <button class="unit-select-btn" onclick="switchUnit('egg')">
+      <div class="btn-main-row">
+        <span>🥚 恐龙石卵弹药 (Dino Egg)</span>
+        <span class="tag-badge">抛射物</span>
+      </div>
+      <div class="btn-sub-row">重型抛射炮弹 · 防御塔与投石手弹药</div>
+    </button>
+  </div>
+
+  <!-- Right QA Audit Card -->
+  <div class="right-panel">
+    <div class="report-title">
+      <span>📋 3D 资产质检报告</span>
+      <span class="qa-score" id="qa-score">PASS 98分</span>
+    </div>
+
+    <div class="info-row">
+      <span>模型格式与路径:</span>
+      <span class="info-val" id="qa-path">FBX (Autodesk Binary)</span>
+    </div>
+    <div class="info-row">
+      <span>三角面数 (Polycount):</span>
+      <span class="info-val" id="qa-poly">约 1,420 面</span>
+    </div>
+    <div class="info-row">
+      <span>骨骼/节点数量:</span>
+      <span class="info-val" id="qa-bones-count">248 节点</span>
+    </div>
+    <div class="info-row">
+      <span>材质与贴图状态:</span>
+      <span class="info-val" id="qa-tex">PBR Standard / shirt1</span>
+    </div>
+    <div class="info-row">
+      <span>标准标尺标高:</span>
+      <span class="info-val" id="qa-scale">1.80 米</span>
+    </div>
+
+    <div class="report-box">
+      <h4>内置骨骼与动作状态</h4>
+      <div class="clip-list" id="qa-clips">
+        <span class="clip-pill">idle (战备待机)</span>
+        <span class="clip-pill">walk (行军迈步)</span>
+        <span class="clip-pill">run (急冲锋)</span>
+        <span class="clip-pill">attack (挥棒猛砸)</span>
+        <span class="clip-pill">death (阵亡倒地)</span>
+      </div>
+    </div>
+
+    <div class="report-box">
+      <h4>质检总监评估结论</h4>
+      <p id="qa-conclusion">
+        低多边形艺术风格与原版《战争进化史》100% 精神契合，顶点分布工整，无骨骼翻转缺陷。自带专属木棒，动作大开大合，极具打击肉感。
+      </p>
+    </div>
+
+    <div class="report-box">
+      <h4>实机手感与数值建议</h4>
+      <p id="qa-advice">
+        出兵造价 $15，攻击前摇 0.3s，移速 3.2m/s。适合成群结队快速推线，配合挥击低沉破空音效与木棒受击重击声。
+      </p>
+    </div>
+  </div>
+
+  <!-- Bottom Action Dock -->
+  <div class="bottom-dock">
+    <button class="action-btn active" id="act-idle" onclick="playAction('idle')">🛑 待机战备 (Idle)</button>
+    <button class="action-btn" id="act-walk" onclick="playAction('walk')">🚶 行军迈步 (Walk)</button>
+    <button class="action-btn" id="act-run" onclick="playAction('run')">🏃 奔跑冲锋 (Run)</button>
+    <button class="action-btn btn-attack" id="act-attack" onclick="playAction('attack')">🎯 攻击挥砍 (Attack)</button>
+    <button class="action-btn btn-death" id="act-death" onclick="playAction('death')">💀 击倒阵亡 (Death)</button>
+    
+    <div class="speed-ctrl">
+      <span>速度:</span>
+      <input type="range" id="speed-slider" min="0.2" max="2.0" step="0.1" value="1.0" oninput="changeSpeed(this.value)">
+      <span id="speed-val">1.0x</span>
+    </div>
+  </div>
+
+  <!-- Loading Screen -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="font-size:15px; font-weight:600; color:#cbd5e1;" id="loading-txt">正在载入 3D 模型资产...</div>
+  </div>
+
+  <script>
+    // --- 3D Model Registry for Era 1 ---
+    const ERA1_REGISTRY = {
+      caveman_1: {
+        title: '棒槌野人 (Club Savage)',
+        type: 'fbx',
+        file: './models/era1/caveman_1.fbx',
+        targetHeight: 1.80,
+        rotationY: -Math.PI / 2 + 0.35,
+        isHumanoid: true,
+        score: 'PASS 98分',
+        poly: '1,420 面',
+        tex: 'PBR / shirt1.png',
+        clips: ['idle (战备待机)', 'walk (行军迈步)', 'run (急行军)', 'attack (挥棒猛砸)', 'death (击倒倒地)'],
+        conclusion: '经典的石器时代近战主力，造型粗犷精炼，挥棒弧度大，力量感充沛，动画节奏紧凑，极具打击感。',
+        advice: '出兵造价 $15，建议配上低沉钝器挥动破空声与野人短促战吼。'
+      },
+      caveman_2: {
+        title: '弹弓投石手 (Slingshot Savage)',
+        type: 'fbx',
+        file: './models/era1/caveman_2.fbx',
+        targetHeight: 1.75,
+        rotationY: Math.PI / 2 + 0.35,
+        isHumanoid: true,
+        score: 'PASS 97分',
+        poly: '1,380 面',
+        tex: 'PBR / shirt1.png',
+        clips: ['idle (搭石警戒)', 'walk (迈步移位)', 'run (撤退拉扯)', 'attack (拉弓暴射)', 'death (受击倒地)'],
+        conclusion: '远程核心骨干，左手握持弹弓，右手拉弦蓄力过程富有张力，击发时有明显的反作用力后坐手感。',
+        advice: '攻击射程配置 16 米，子弹抛物线发射原始卵石(egg.fbx)，附带碎石破空音效。'
+      },
+      caveman_3: {
+        title: '原版复刻恐龙骑手 (Caveman Rider)',
+        type: 'fbx',
+        file: './models/era1/caveman_3.fbx',
+        targetHeight: 2.20,
+        rotationY: -Math.PI / 2 - 0.2,
+        score: 'PASS 95分',
+        poly: '2,890 面',
+        tex: 'PBR / shirt1.png',
+        clips: ['idle (骑乘待机)', 'walk (恐龙前行)', 'run (恐龙冲锋)', 'attack (近身撕咬/挥棒)', 'death (坐骑倒塌)'],
+        conclusion: 'MrPio 原版重制骑兵一体模型，忠实还原 Flash 原版设定，野人直接驾驭恐龙鞍座。',
+        advice: '与单独的迅猛龙相比更贴近原作动画剪影，可作为官方纯正情怀复刻选项。'
+      },
+      turret_1_1: {
+        title: '1阶单发弹弓塔 (Tier 1)',
+        type: 'fbx',
+        file: './models/era1/turret_1_1.fbx',
+        targetHeight: 3.00,
+        rotationY: Math.PI / 2 - 0.2,
+        score: 'PASS 96分',
+        poly: '480 面',
+        tex: 'PBR / Turret1.png',
+        clips: ['turret_idle (警戒架设)', 'turret_attack (拉弦回弹射击)'],
+        conclusion: '轻型防御哨塔，原木绑扎支架，发射原始弹石。结构清晰，面数极低，性能卓越。',
+        advice: '安放于基地前方插槽，造价 $100，每 1.2 秒单发精准射击。'
+      },
+      turret_1_2: {
+        title: '2阶双联投石塔 (Tier 2)',
+        type: 'fbx',
+        file: './models/era1/turret_1_2.fbx',
+        targetHeight: 3.60,
+        rotationY: Math.PI / 2 - 0.2,
+        score: 'PASS 97分',
+        poly: '720 面',
+        tex: 'PBR / Turret2.png',
+        clips: ['turret_idle (双联警戒)', 'turret_attack (交替弹射)'],
+        conclusion: '升级版防御塔，双臂交替抛石，火力密度翻倍。',
+        advice: '造价 $200，有效遏制敌方轻步兵海冲锋。'
+      },
+      turret_1_3: {
+        title: '3阶重型巨石投石塔 (Tier 3)',
+        type: 'fbx',
+        file: './models/era1/turret_1_3.fbx',
+        targetHeight: 4.50,
+        rotationY: Math.PI / 2 - 0.2,
+        score: 'PASS 98分',
+        poly: '1,150 面',
+        tex: 'PBR / Turret1 & Baked',
+        clips: ['turret_idle (高台待机)', 'turret_attack (重炮轰顶)'],
+        conclusion: '石器时代防御塔巅峰，投掷巨大恐龙卵/巨石，落地带范围爆炸冲击波。',
+        advice: '造价 $400，石器时代守家定海神针。'
+      },
+      base_1: {
+        title: '史前要塞基地洞穴 (Cave Base)',
+        type: 'fbx',
+        file: './models/era1/base_1.fbx',
+        targetHeight: 5.50,
+        rotationY: -0.3,
+        score: 'PASS 99分',
+        poly: '1,680 面',
+        tex: 'PBR / Baked.png',
+        clips: ['静态要塞主建筑 (无骨骼动画)'],
+        conclusion: '巨石凿刻的原始人类洞窟堡垒，顶部预留防御塔卡槽位，下方为出兵洞口通道。质感厚重，非常有史前苍凉厚重感。',
+        advice: '作为双方要塞的核心 3D 实体，直接取代原先的三维方块拼装基地。'
+      },
+      special_1: {
+        title: '天降流星雨陨石 (Meteor)',
+        type: 'fbx',
+        file: './models/era1/special_1.fbx',
+        targetHeight: 2.00,
+        rotationY: 0,
+        isMeteor: true,
+        score: 'PASS 99分',
+        poly: '320 面',
+        tex: 'PBR / 烈焰熔岩着色',
+        clips: ['流星旋转下坠轨迹'],
+        conclusion: '史前时代终极大招专属投射物！配合尾焰粒子与爆炸烟尘，全屏降落效果极具视觉冲击。',
+        advice: '释放大招时，从天际随机倾泻 15~20 颗流星砸向地面。'
+      },
+      club: {
+        title: '粗制原始木棒 (Primitive Club)',
+        type: 'fbx',
+        file: './models/era1/club.fbx',
+        targetHeight: 1.10,
+        rotationY: 0.4,
+        score: 'PASS 98分',
+        poly: '280 面',
+        tex: 'PBR / 粗制实木质感',
+        clips: ['单体武器旋转展示'],
+        conclusion: '棒槌野人的专属武器，头部粗大具钝击杀伤力，手柄缠有防滑藤蔓。',
+        advice: '命中产生沉闷重音与木屑微粒。'
+      },
+      sling: {
+        title: '史前拉索弹弓 (Hunting Sling)',
+        type: 'fbx',
+        file: './models/era1/sling.fbx',
+        targetHeight: 0.90,
+        rotationY: 0.4,
+        score: 'PASS 97分',
+        poly: '320 面',
+        tex: 'PBR / 兽皮索与木架',
+        clips: ['单体武器旋转展示'],
+        conclusion: '弹弓投石手的专属兵器，丫字形坚硬树杈配柔韧皮条索。',
+        advice: '射击时附带清脆皮筋回弹音。'
+      },
+      egg: {
+        title: '恐龙石卵弹药 (Dino Egg)',
+        type: 'fbx',
+        file: './models/era1/egg.fbx',
+        targetHeight: 0.65,
+        rotationY: 0.4,
+        score: 'PASS 98分',
+        poly: '160 面',
+        tex: 'PBR / 斑驳石质纹理',
+        clips: ['单体弹药旋转展示'],
+        conclusion: '投石手与投石塔的实心抛射弹药，椭圆蛋型，击碎后四散飞溅。',
+        advice: '投射物自带微小自转与抛物线轨迹。'
+      }
+    };
+
+    // --- State ---
+    let scene, camera, renderer, controls;
+    let clock = new THREE.Clock();
+    let currentKey = 'caveman_1';
+    let currentLoadedModel = null;
+    let currentModelGroup = new THREE.Group();
+    let mixer = null;
+    let currentAction = null;
+    let animActions = {};
+    let activeClipName = 'idle';
+    let animSpeed = 1.0;
+    let cameraMode = 'side';
+    let isWireframe = false;
+    let isAutoRotating = false;
+    let lightMode = 0; // 0: 阳光, 1: 黄昏, 2: 聚光灯
+    let mainSunLight, skyLight, ambientLight, spotLight;
+
+    // Procedural animation state for humanoid models without FBX clips
+    let proceduralAnimState = {
+      active: false,
+      mode: 'idle', // idle, walk, run, attack, death
+      time: 0,
+      bones: {}
+    };
+
+    // --- Three.js Environment Setup ---
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x090d16);
+      scene.fog = new THREE.FogExp2(0x090d16, 0.015);
+
+      camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 - 0.01; // 不穿入地下
+
+      scene.add(currentModelGroup);
+
+      setupLights();
+      setupStage();
+      setCamera('side');
+
+      loadCurrentUnit();
+
+      window.addEventListener('resize', onResize);
+      animate();
+    }
+
+    function setupLights() {
+      // 1. 阳光
+      mainSunLight = new THREE.DirectionalLight(0xffeedd, 1.8);
+      mainSunLight.position.set(15, 25, 12);
+      mainSunLight.castShadow = true;
+      mainSunLight.shadow.mapSize.width = 2048;
+      mainSunLight.shadow.mapSize.height = 2048;
+      mainSunLight.shadow.camera.near = 0.5;
+      mainSunLight.shadow.camera.far = 80;
+      mainSunLight.shadow.camera.left = -12;
+      mainSunLight.shadow.camera.right = 12;
+      mainSunLight.shadow.camera.top = 12;
+      mainSunLight.shadow.camera.bottom = -12;
+      mainSunLight.shadow.bias = -0.0005;
+      scene.add(mainSunLight);
+
+      // 2. 天空补光
+      skyLight = new THREE.DirectionalLight(0x38bdf8, 0.6);
+      skyLight.position.set(-15, 15, -15);
+      scene.add(skyLight);
+
+      // 3. 环境漫反射
+      ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+      scene.add(ambientLight);
+
+      // 4. 聚光灯 (展台质检模式)
+      spotLight = new THREE.SpotLight(0xffffff, 2.5, 30, Math.PI / 4, 0.4);
+      spotLight.position.set(0, 16, 0);
+      spotLight.castShadow = true;
+      spotLight.visible = false;
+      scene.add(spotLight);
+    }
+
+    function setLightingMode(mode) {
+      lightMode = mode;
+      const btn = document.getElementById('btn-light');
+      if (mode === 0) {
+        // 烈日荒野
+        btn.innerText = '☀️ 烈日荒野';
+        scene.background = new THREE.Color(0x090d16);
+        scene.fog.color = new THREE.Color(0x090d16);
+        mainSunLight.color.setHex(0xffeedd);
+        mainSunLight.intensity = 1.8;
+        skyLight.color.setHex(0x38bdf8);
+        skyLight.intensity = 0.6;
+        ambientLight.color.setHex(0xffffff);
+        ambientLight.intensity = 0.65;
+        spotLight.visible = false;
+      } else if (mode === 1) {
+        // 史前黄昏
+        btn.innerText = '🌅 史前黄昏';
+        scene.background = new THREE.Color(0x160c18);
+        scene.fog.color = new THREE.Color(0x160c18);
+        mainSunLight.color.setHex(0xf97316);
+        mainSunLight.intensity = 2.2;
+        skyLight.color.setHex(0x8b5cf6);
+        skyLight.intensity = 0.7;
+        ambientLight.color.setHex(0xfde047);
+        ambientLight.intensity = 0.45;
+        spotLight.visible = false;
+      } else if (mode === 2) {
+        // 展台工作灯
+        btn.innerText = '🔬 展台质检灯';
+        scene.background = new THREE.Color(0x04060a);
+        scene.fog.color = new THREE.Color(0x04060a);
+        mainSunLight.intensity = 0.4;
+        skyLight.intensity = 0.2;
+        ambientLight.intensity = 0.3;
+        spotLight.visible = true;
+      }
+    }
+
+    function cycleLighting() {
+      setLightingMode((lightMode + 1) % 3);
+    }
+
+    function setupStage() {
+      // 1. 检视展示圆台
+      const stageGeo = new THREE.CylinderGeometry(8, 8.5, 0.4, 64);
+      const stageMat = new THREE.MeshStandardMaterial({
+        color: 0x182030,
+        roughness: 0.85,
+        metalness: 0.15
+      });
+      const stage = new THREE.Mesh(stageGeo, stageMat);
+      stage.position.y = -0.2;
+      stage.receiveShadow = true;
+      scene.add(stage);
+
+      // 2. 环形发光地标线
+      const ringGeo = new THREE.RingGeometry(7.8, 8.05, 64);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0xe07a5f, side: THREE.DoubleSide });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.01;
+      scene.add(ring);
+
+      // 3. 辅助网格 (1米间隔标尺)
+      const grid = new THREE.GridHelper(16, 16, 0xe07a5f, 0x334155);
+      grid.position.y = 0.02;
+      scene.add(grid);
+
+      // 4. 高度指示标尺 (1m, 2m, 3m, 4m, 5m 标杆)
+      createHeightRuler();
+    }
+
+    function createHeightRuler() {
+      const rulerGroup = new THREE.Group();
+      rulerGroup.position.set(-6, 0, 0);
+
+      // 标尺立柱 (高 6 米)
+      const poleGeo = new THREE.CylinderGeometry(0.04, 0.04, 6, 8);
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.y = 3;
+      rulerGroup.add(pole);
+
+      // 刻度环
+      for (let h = 1; h <= 6; h++) {
+        const markGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.03, 16);
+        const markMat = new THREE.MeshBasicMaterial({ color: h === 2 ? 0xe07a5f : 0x38bdf8 });
+        const mark = new THREE.Mesh(markGeo, markMat);
+        mark.position.y = h;
+        rulerGroup.add(mark);
+      }
+      scene.add(rulerGroup);
+    }
+
+    // --- Model Loader ---
+    const fbxLoader = new THREE.FBXLoader();
+
+    function loadCurrentUnit() {
+      const config = ERA1_REGISTRY[currentKey];
+      document.getElementById('cur-model-title').innerText = config.title;
+      document.getElementById('loading').style.display = 'flex';
+      document.getElementById('loading').style.opacity = '1';
+      document.getElementById('loading-txt').innerText = `正在加载 ${config.title}...`;
+
+      // 清除旧模型
+      while (currentModelGroup.children.length > 0) {
+        currentModelGroup.remove(currentModelGroup.children[0]);
+      }
+      if (mixer) mixer.stopAllAction();
+      mixer = null;
+      animActions = {};
+      currentAction = null;
+      proceduralAnimState.active = false;
+      proceduralAnimState.bones = {};
+
+      // 加载主模型
+      fbxLoader.load(
+        config.file,
+        (fbx) => {
+          onMainModelLoaded(fbx, config);
+        },
+        undefined,
+        (err) => {
+          console.error("加载模型出错:", err);
+          alert(`模型加载失败: ${err.message || err}`);
+          document.getElementById('loading').style.display = 'none';
+        }
+      );
+    }
+
+    function onMainModelLoaded(model, config) {
+      currentLoadedModel = model;
+
+      // 1. 先重置基础变换并加入场景以计算真实的原始包围盒
+      model.position.set(0, 0, 0);
+      model.rotation.set(0, 0, 0);
+      model.scale.set(1.0, 1.0, 1.0);
+      currentModelGroup.add(model);
+
+      const rawBox = new THREE.Box3().setFromObject(model);
+      const rawSize = new THREE.Vector3();
+      rawBox.getSize(rawSize);
+
+      console.log(`[${config.title}] 原始尺寸:`, rawSize);
+
+      // 2. 智能归一化缩放因子计算
+      // 目标高度为 config.targetHeight
+      let scaleFactor = 1.0;
+      if (rawSize.y > 0.001) {
+        scaleFactor = config.targetHeight / rawSize.y;
+      }
+      model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+      // 3. 重新计算缩放后的包围盒并居中对齐地面
+      const scaledBox = new THREE.Box3().setFromObject(model);
+      const scaledCenter = new THREE.Vector3();
+      scaledBox.getCenter(scaledCenter);
+
+      // X、Z 居中，底部 min.y 贴合地面 y=0
+      model.position.x = -scaledCenter.x;
+      model.position.z = -scaledCenter.z;
+      if (config.isMeteor) {
+        // 陨石悬浮于空中 2.5 米
+        model.position.y = 2.5;
+      } else {
+        model.position.y = -scaledBox.min.y;
+      }
+
+      // 4. 朝向微调
+      if (config.rotationY !== undefined) {
+        model.rotation.y = config.rotationY;
+      } else {
+        model.rotation.y = 0;
+      }
+
+      // 5. 材质、阴影与线框模式处理
+      let totalPolygons = 0;
+      let meshCount = 0;
+      let boneNodes = [];
+
+      model.traverse((child) => {
+        if (child.name === 'Head002') {
+          child.visible = false;
+        }
+        if (child.isMesh) {
+          meshCount++;
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.geometry) {
+            if (child.geometry.index) {
+              totalPolygons += child.geometry.index.count / 3;
+            } else if (child.geometry.attributes && child.geometry.attributes.position) {
+              totalPolygons += child.geometry.attributes.position.count / 3;
+            }
+          }
+          if (child.material) {
+            child.material.wireframe = isWireframe;
+            child.material.roughness = THREE.MathUtils.clamp(child.material.roughness || 0.75, 0.35, 0.95);
+            child.material.metalness = THREE.MathUtils.clamp(child.material.metalness || 0.05, 0.0, 0.2);
+            
+            // 特殊岩石/流星强化发光或质感
+            if (config.isMeteor && child.name.toLowerCase().includes('rock')) {
+              child.material.emissive = new THREE.Color(0xd97706);
+              child.material.emissiveIntensity = 0.45;
+            }
+          }
+        }
+        if (child.isBone || (child.name && child.name.toLowerCase().includes('bone'))) {
+          boneNodes.push(child);
+        }
+      });
+
+      // 6. 骨骼与动画处理
+      if (config.isHumanoid) {
+        // 核心突破：消除 Three.js 多部件 SkinnedMesh 骨架重复实例化问题
+        unifyHumanoidSkeleton(model);
+        attachWeaponToHumanoid(model, currentKey);
+        loadUnitAnimations(model, currentKey);
+      } else if (model.animations && model.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(model);
+        console.log(`[${config.title}] 识别到原生骨骼动画:`, model.animations);
+
+        model.animations.forEach((clip) => {
+          const action = mixer.clipAction(clip);
+          const nameLower = clip.name.toLowerCase();
+          animActions[nameLower] = action;
+          
+          if (nameLower.includes('idle')) animActions['idle'] = action;
+          if (nameLower.includes('walk')) animActions['walk'] = action;
+          if (nameLower.includes('run')) animActions['run'] = action;
+          if (nameLower.includes('attack') || nameLower.includes('bite') || nameLower.includes('shoot')) {
+            if (!animActions['attack']) animActions['attack'] = action;
+          }
+          if (nameLower.includes('die') || nameLower.includes('death')) {
+            if (!animActions['death']) animActions['death'] = action;
+          }
+        });
+
+        // 默认播放待机
+        playAction('idle');
+      } else {
+        loadUnitAnimations(model, currentKey);
+      }
+
+      // 7. 更新质检报告面板
+      updateReportCard(config, Math.round(totalPolygons), boneNodes.length);
+
+      // 8. 调整摄像机对焦
+      fitCameraToObject(config.targetHeight);
+
+      // 9. 关闭 loading
+      document.getElementById('loading').style.opacity = '0';
+      setTimeout(() => {
+        document.getElementById('loading').style.display = 'none';
+      }, 300);
+    }
+
+    // --- 骨骼主链统一去重 (彻底杜绝多重嵌套与肢体分裂) ---
+    function unifyHumanoidSkeleton(model) {
+      const meshes = [];
+      model.traverse(c => { if (c.isSkinnedMesh) meshes.push(c); });
+      if (meshes.length === 0) return null;
+
+      let masterMesh = meshes.find(m => m.name === 'LegR');
+      if (!masterMesh) {
+        masterMesh = meshes.find(m => m.skeleton && m.skeleton.bones[0] && m.skeleton.bones[0].parent && m.skeleton.bones[0].parent.name.includes('Armature')) || meshes[0];
+      }
+      if (!masterMesh || !masterMesh.skeleton) return null;
+
+      const masterSkeleton = masterMesh.skeleton;
+      const masterBoneSet = new Set(masterSkeleton.bones);
+
+      // 1. 将所有分离网格 (Body, ArmR, ArmL, LegL, LegR, Head) 统一定向至单一主骨架
+      meshes.forEach(m => {
+        if (m !== masterMesh) {
+          m.bind(masterSkeleton, m.bindMatrix);
+        }
+      });
+
+      // 2. 清除主骨骼中被级联注入的多余嵌套子骨骼
+      masterSkeleton.bones.forEach(b => {
+        b.children = b.children.filter(c => masterBoneSet.has(c));
+      });
+
+      return masterSkeleton;
+    }
+
+    // --- 武器智能挂载 ---
+    function attachWeaponToHumanoid(model, key) {
+      if (key === 'caveman_1') {
+        fbxLoader.load('./models/era1/club.fbx', (club) => {
+          club.name = 'AttachedWeapon';
+          club.scale.set(1.0, 1.0, 1.0);
+          club.position.set(0, 0, 0);
+          club.rotation.set(-Math.PI / 2, 0, 0);
+          
+          let handBone = null;
+          model.traverse(c => {
+            if (c.name === 'Bone020' && !handBone) handBone = c;
+          });
+          if (handBone) {
+            handBone.add(club);
+          }
+        });
+      } else if (key === 'caveman_2') {
+        fbxLoader.load('./models/era1/sling.fbx', (sling) => {
+          sling.name = 'AttachedWeapon';
+          sling.scale.set(1.0, 1.0, 1.0);
+          sling.position.set(0, 0, 0);
+          sling.rotation.set(0, Math.PI / 2, 0);
+
+          let handBone = null;
+          model.traverse(c => {
+            if ((c.name === 'Bone019' || c.name === 'Bone017') && !handBone) handBone = c;
+          });
+          if (handBone) {
+            handBone.add(sling);
+          }
+        });
+      }
+    }
+
+    // --- 加载官方 AnimationClip 序列 ---
+    async function loadUnitAnimations(model, key) {
+      if (mixer) mixer.stopAllAction();
+      mixer = new THREE.AnimationMixer(model);
+      animActions = {};
+
+      if (key === 'caveman_1' || key === 'caveman_2') {
+        const clipsMap = key === 'caveman_1' ? {
+          idle: './models/era1/animations/caveman_1_idle.json',
+          walk: './models/era1/animations/caveman_1_walk.json',
+          run: './models/era1/animations/caveman_1_walk.json',
+          attack: './models/era1/animations/caveman_1_attack.json',
+          death: './models/era1/animations/caveman_1_die.json'
+        } : {
+          idle: './models/era1/animations/caveman_2_idle.json',
+          walk: './models/era1/animations/caveman_2_walk.json',
+          run: './models/era1/animations/caveman_2_walk.json',
+          attack: './models/era1/animations/caveman_2_shoot.json',
+          death: './models/era1/animations/caveman_2_die.json'
+        };
+
+        for (const [actionName, url] of Object.entries(clipsMap)) {
+          try {
+            const res = await fetch(url);
+            if (res.ok) {
+              const json = await res.json();
+              const clip = THREE.AnimationClip.parse(json);
+              clip.uuid = THREE.MathUtils.generateUUID();
+              const action = mixer.clipAction(clip);
+              if (actionName === 'run') {
+                action.timeScale = 1.6;
+              }
+              animActions[actionName] = action;
+            }
+          } catch (e) {
+            console.warn(`加载动作失败 [${actionName}]:`, e);
+          }
+        }
+      } else if (key.startsWith('turret_')) {
+        const clipsMap = {
+          idle: `./models/era1/animations/${key}_idle.json`,
+          attack: `./models/era1/animations/${key}_attack.json`
+        };
+        for (const [actionName, url] of Object.entries(clipsMap)) {
+          try {
+            const res = await fetch(url);
+            if (res.ok) {
+              const json = await res.json();
+              const clip = THREE.AnimationClip.parse(json);
+              clip.uuid = THREE.MathUtils.generateUUID();
+              animActions[actionName] = mixer.clipAction(clip);
+            }
+          } catch (e) {}
+        }
+      }
+
+      playAction('idle');
+    }
+
+    // --- Procedural Skeleton Rig ---
+    // 为野人提供灵动的战斗巡逻、冲锋、挥击、倒地物理动作
+    function setupProceduralSkeletonRig(model, bones) {
+      proceduralAnimState.active = true;
+      proceduralAnimState.time = 0;
+      proceduralAnimState.mode = 'idle';
+      
+      const config = ERA1_REGISTRY[currentKey];
+
+      // 记录骨骼初始局部旋转并对人形野人修正自然握持战备姿势 (100% 对齐 MrPio Unity 原版 idle 曲线)
+      proceduralAnimState.bones = bones.map(b => {
+        const initRot = b.rotation.clone();
+        const name = b.name.toLowerCase();
+        
+        if (config && config.isHumanoid) {
+          // 铁律：绝对严禁旋转 Bone.014 与 Bone.013（肩胛骨/锁骨），因为兽皮裙网格顶点蒙皮绑定在此处！
+          // Unity 原版动画直接旋转 Bone.016 (右大臂) 与 Bone.015 (左大臂)，手臂自然下垂战备，衣服平整完好
+          if (name.includes('016')) { // 右大臂下垂
+            initRot.set(-1.254, 0.010, -0.021);
+          } else if (name.includes('015')) { // 左大臂下垂
+            initRot.set(1.168, -0.086, -0.096);
+          } else if (name.includes('018')) { // 右前臂微屈
+            initRot.x = -0.272;
+          } else if (name.includes('017')) { // 左前臂微屈
+            initRot.x = 0.125;
+          }
+        }
+
+        b.rotation.copy(initRot);
+        return { bone: b, initRot, name };
+      });
+    }
+
+    function updateProceduralAnimation(delta) {
+      if (!proceduralAnimState.active || !currentLoadedModel) return;
+      proceduralAnimState.time += delta * animSpeed;
+      const t = proceduralAnimState.time;
+      const mode = proceduralAnimState.mode;
+
+      proceduralAnimState.bones.forEach(({ bone, initRot, name }) => {
+        bone.rotation.copy(initRot);
+
+        if (mode === 'idle') {
+          // 待机轻微呼吸（绝对不碰肩胛骨，衣服平滑无折痕）
+          if (name.includes('012') || name.includes('spine')) {
+            bone.rotation.x += Math.sin(t * 2.2) * 0.025;
+          }
+          if (name.includes('016')) {
+            bone.rotation.z += Math.sin(t * 2.2) * 0.02;
+          }
+          if (name.includes('015')) {
+            bone.rotation.z -= Math.sin(t * 2.2) * 0.02;
+          }
+        } else if (mode === 'walk') {
+          // 行军迈步：大腿平缓摆动，手臂自然交替
+          const stride = Math.sin(t * 4.5);
+          if (name.includes('005')) { // 左/右腿骨
+            bone.rotation.x += stride * 0.35;
+          } else if (name.includes('006')) {
+            bone.rotation.x -= stride * 0.35;
+          }
+          if (name.includes('016')) {
+            bone.rotation.x -= stride * 0.20;
+          } else if (name.includes('015')) {
+            bone.rotation.x += stride * 0.20;
+          }
+          if (name.includes('012')) {
+            bone.rotation.y = Math.sin(t * 4.5) * 0.04;
+          }
+        } else if (mode === 'run') {
+          // 狂暴冲锋：步伐加大，身体微倾
+          const stride = Math.sin(t * 8.0);
+          if (name.includes('012')) {
+            bone.rotation.x += 0.15;
+          }
+          if (name.includes('005')) {
+            bone.rotation.x += stride * 0.55;
+          } else if (name.includes('006')) {
+            bone.rotation.x -= stride * 0.55;
+          }
+          if (name.includes('016')) {
+            bone.rotation.x -= stride * 0.35;
+          } else if (name.includes('015')) {
+            bone.rotation.x += stride * 0.35;
+          }
+        } else if (mode === 'attack') {
+          // 猛烈攻击：右臂挥击木棒/弹弓
+          const swing = Math.sin(t * 5.5);
+          if (name.includes('012')) {
+            bone.rotation.x += swing * 0.18;
+            bone.rotation.y += swing * 0.12;
+          }
+          if (name.includes('016')) {
+            bone.rotation.x += swing * 0.55;
+            bone.rotation.z += swing * 0.25;
+          }
+          if (name.includes('018')) {
+            bone.rotation.x += swing * 0.35;
+          }
+        } else if (mode === 'death') {
+          // 受击击倒倒地
+          if (name.includes('012')) {
+            bone.rotation.x = -1.15;
+          }
+          if (name.includes('016')) {
+            bone.rotation.x = 0.4;
+          }
+        }
+      });
+    }
+
+    // --- Action & Animation Director ---
+    function playAction(actionName) {
+      // 更新按钮高亮
+      ['idle', 'walk', 'run', 'attack', 'death'].forEach(a => {
+        const btn = document.getElementById(`act-${a}`);
+        if (btn) btn.classList.remove('active');
+      });
+      const activeBtn = document.getElementById(`act-${actionName}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      if (proceduralAnimState.active) {
+        proceduralAnimState.mode = actionName;
+        proceduralAnimState.time = 0;
+        return;
+      }
+
+      if (!mixer) return;
+
+      let targetAction = animActions[actionName];
+      if (!targetAction) {
+        if (actionName === 'run') targetAction = animActions['walk'];
+        if (actionName === 'attack') targetAction = animActions['idle'];
+        if (actionName === 'death') targetAction = animActions['idle'];
+      }
+      if (!targetAction) {
+        const keys = Object.keys(animActions);
+        if (keys.length > 0) targetAction = animActions[keys[0]];
+      }
+
+      if (!targetAction || currentAction === targetAction) return;
+
+      if (currentAction) {
+        currentAction.fadeOut(0.2);
+      }
+
+      targetAction.reset();
+      targetAction.fadeIn(0.2);
+      targetAction.timeScale = animSpeed;
+
+      if (actionName === 'death') {
+        targetAction.setLoop(THREE.LoopOnce);
+        targetAction.clampWhenFinished = true;
+      } else {
+        targetAction.setLoop(THREE.LoopRepeat);
+      }
+
+      targetAction.play();
+      currentAction = targetAction;
+      activeClipName = actionName;
+    }
+
+    function changeSpeed(val) {
+      animSpeed = parseFloat(val);
+      document.getElementById('speed-val').innerText = `${animSpeed.toFixed(1)}x`;
+      if (currentAction) {
+        currentAction.timeScale = animSpeed;
+      }
+    }
+
+    // --- Switch Unit ---
+    function switchUnit(key) {
+      if (currentKey === key) return;
+      currentKey = key;
+
+      document.querySelectorAll('.unit-select-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = Array.from(document.querySelectorAll('.unit-select-btn')).find(b => b.getAttribute('onclick').includes(key));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      loadCurrentUnit();
+    }
+
+    function updateReportCard(config, polyCount, boneCount) {
+      document.getElementById('qa-score').innerText = config.score;
+      document.getElementById('qa-path').innerText = config.file.split('/').pop();
+      document.getElementById('qa-poly').innerText = polyCount > 0 ? `${polyCount.toLocaleString()} 面` : config.poly;
+      document.getElementById('qa-bones-count').innerText = boneCount > 0 ? `${boneCount} 节点/骨骼` : '静态网格体';
+      document.getElementById('qa-tex').innerText = config.tex || 'PBR Standard';
+      document.getElementById('qa-scale').innerText = `${config.targetHeight.toFixed(2)} 米`;
+
+      const clipsContainer = document.getElementById('qa-clips');
+      clipsContainer.innerHTML = '';
+      config.clips.forEach(clip => {
+        const pill = document.createElement('span');
+        pill.className = 'clip-pill';
+        pill.innerText = clip;
+        clipsContainer.appendChild(pill);
+      });
+
+      document.getElementById('qa-conclusion').innerText = config.conclusion;
+      document.getElementById('qa-advice').innerText = config.advice;
+    }
+
+    // --- Camera Control Modes ---
+    function setCamera(mode) {
+      cameraMode = mode;
+      ['side', 'iso', 'chase', 'orbit'].forEach(m => {
+        const btn = document.getElementById(`cam-${m}`);
+        if (btn) btn.classList.remove('active');
+      });
+      const activeBtn = document.getElementById(`cam-${mode}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const config = ERA1_REGISTRY[currentKey];
+      const h = config ? config.targetHeight : 2.0;
+      const targetY = config && config.isMeteor ? 2.5 : h * 0.45;
+      const dist = Math.max(h * 2.2, 3.8);
+
+      controls.target.set(0, targetY, 0);
+
+      if (mode === 'side') {
+        // 经典横版战斗侧视角度 (Z向拉开，从正前方/侧面观察对决)
+        camera.position.set(0, targetY * 1.1, dist * 1.3);
+      } else if (mode === 'iso') {
+        // 45°俯视战场视角
+        camera.position.set(dist * 0.9, dist * 0.9, dist * 0.9);
+      } else if (mode === 'chase') {
+        // 近距离特写
+        camera.position.set(-dist * 0.35, targetY * 1.1, dist * 0.55);
+      } else if (mode === 'orbit') {
+        // 自由环视视角
+        camera.position.set(dist * 0.8, targetY * 1.3, dist * 0.8);
+      }
+      controls.update();
+    }
+
+    function fitCameraToObject(targetHeight) {
+      setCamera(cameraMode);
+    }
+
+    function toggleWireframe() {
+      isWireframe = !isWireframe;
+      const btn = document.getElementById('btn-wireframe');
+      btn.classList.toggle('active', isWireframe);
+
+      if (currentLoadedModel) {
+        currentLoadedModel.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.material.wireframe = isWireframe;
+          }
+        });
+      }
+    }
+
+    function toggleAutoRotate() {
+      isAutoRotating = !isAutoRotating;
+      const btn = document.getElementById('btn-rotate');
+      btn.classList.toggle('active', isAutoRotating);
+      controls.autoRotate = isAutoRotating;
+      controls.autoRotateSpeed = 2.0;
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+
+      if (mixer) {
+        mixer.update(delta);
+      }
+
+      updateProceduralAnimation(delta);
+
+      // 陨石缓慢自转与浮动
+      if (ERA1_REGISTRY[currentKey] && ERA1_REGISTRY[currentKey].isMeteor && currentLoadedModel) {
+        currentLoadedModel.rotation.x += delta * 0.6;
+        currentLoadedModel.rotation.y += delta * 0.8;
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

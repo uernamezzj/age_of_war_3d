@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>战争进化史 3D - 全时代防御塔 3D 检视展厅</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+    #sidebar {
+      width: 380px;
+      background: #161b22;
+      border-right: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+    }
+    #header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #30363d;
+      background: #1f242c;
+    }
+    #header h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #58a6ff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #header p {
+      font-size: 0.8rem;
+      color: #8b949e;
+      margin-top: 4px;
+    }
+    #turret-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .era-group {
+      margin-bottom: 16px;
+    }
+    .era-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #8b949e;
+      margin-bottom: 8px;
+      padding-left: 4px;
+      font-weight: 600;
+    }
+    .turret-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .turret-card:hover {
+      background: #2c323c;
+      border-color: #58a6ff;
+      transform: translateY(-1px);
+    }
+    .turret-card.active {
+      background: #1f334d;
+      border-color: #58a6ff;
+      box-shadow: 0 0 12px rgba(88, 166, 255, 0.25);
+    }
+    .turret-thumb {
+      width: 56px;
+      height: 42px;
+      background: #0d1117;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid #30363d;
+    }
+    .turret-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .turret-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #f0f6fc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .turret-en-name {
+      font-size: 0.72rem;
+      color: #8b949e;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .turret-cost {
+      font-size: 0.75rem;
+      color: #e3b341;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    #viewport-container {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(circle at center, #1c2331 0%, #0b0f17 100%);
+    }
+    #canvas-3d {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #hud-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 320px;
+      background: rgba(22, 27, 34, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      z-index: 5;
+    }
+    #hud-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #58a6ff;
+    }
+    #hud-en-title {
+      font-size: 0.8rem;
+      color: #8b949e;
+      margin-bottom: 12px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(48, 54, 61, 0.6);
+    }
+    .stat-label {
+      color: #8b949e;
+    }
+    .stat-val {
+      font-weight: 600;
+      color: #f0f6fc;
+    }
+    .stat-val.gold { color: #e3b341; }
+    .stat-val.dmg { color: #f85149; }
+    .stat-val.dim { color: #7ee787; }
+    #controls-bar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(22, 27, 34, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid #30363d;
+      border-radius: 30px;
+      padding: 6px 14px;
+      display: flex;
+      gap: 10px;
+      z-index: 5;
+    }
+    .btn-ctrl {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      font-size: 0.8rem;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-ctrl:hover {
+      background: #30363d;
+      color: #fff;
+    }
+    .btn-ctrl.active {
+      background: #238636;
+      border-color: #2ea043;
+      color: #fff;
+    }
+    #btn-back-game {
+      background: #1f6feb;
+      border-color: #388bfd;
+      color: #fff;
+    }
+    #loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 17, 23, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      color: #58a6ff;
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    #loading-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/node_modules/three/build/three.module.js",
+        "three/addons/": "/node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="sidebar">
+    <div id="header">
+      <h1>🏰 全 15 门防御塔 3D 展厅</h1>
+      <p>1:1 还原 Unity 原版 Prefab 几何、贴图与层级</p>
+    </div>
+    <div id="turret-list"></div>
+  </div>
+
+  <div id="viewport-container">
+    <div id="loading-overlay">加载 3D 模型中...</div>
+    <canvas id="canvas-3d"></canvas>
+
+    <div id="hud-panel">
+      <div id="hud-title">投石索防御塔</div>
+      <div id="hud-en-title">Rock Slingshot (Age 1 - Level 1)</div>
+      <div class="stat-row"><span class="stat-label">所处时代</span><span class="stat-val" id="val-age">第一时代：原始石器时代</span></div>
+      <div class="stat-row"><span class="stat-label">建造花费</span><span class="stat-val gold" id="val-cost">100 金币</span></div>
+      <div class="stat-row"><span class="stat-label">折价出售</span><span class="stat-val gold" id="val-sell">50 金币</span></div>
+      <div class="stat-row"><span class="stat-label">基础伤害</span><span class="stat-val dmg" id="val-damage">10 点</span></div>
+      <div class="stat-row"><span class="stat-label">攻击间隔</span><span class="stat-val" id="val-rate">1.8 秒/次</span></div>
+      <div class="stat-row"><span class="stat-label">有效射程</span><span class="stat-val" id="val-range">16.0 米</span></div>
+      <div class="stat-row"><span class="stat-label">弹道速度</span><span class="stat-val" id="val-speed">16.0 米/秒</span></div>
+      <div class="stat-row"><span class="stat-label">3D包围盒(宽×高×深)</span><span class="stat-val dim" id="val-bbox">1.2 × 1.3 × 1.0 米</span></div>
+      <div class="stat-row"><span class="stat-label">网格部件数</span><span class="stat-val" id="val-meshes">3 个子部件</span></div>
+    </div>
+
+    <div id="controls-bar">
+      <button class="btn-ctrl active" id="btn-rotate">🔄 自动旋转</button>
+      <button class="btn-ctrl" id="btn-wireframe">📐 线框模式</button>
+      <button class="btn-ctrl" id="btn-reset">🎯 重置视角</button>
+      <button class="btn-ctrl" id="btn-render">🖼️ 原版棚拍特写</button>
+      <a href="./game.html" class="btn-ctrl" id="btn-back-game" style="text-decoration:none;">🎮 返回游戏对战</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const TURRETS_DATA = [
+      { era: 1, tier: 1, id: "turret_1_1", name: "投石索防御塔", enName: "Rock Slingshot", cost: 100, sell: 50, dmg: 10, rate: 1.8, range: 16.0, speed: 16.0, model: "./models/era1/turret_1_1.glb", render: "./public/renders/turret_1_1.png" },
+      { era: 1, tier: 2, id: "turret_1_2", name: "双联恐龙蛋机枪塔", enName: "Egg Automatic", cost: 200, sell: 100, dmg: 4, rate: 0.5, range: 16.0, speed: 18.0, model: "./models/era1/turret_1_2.glb", render: "./public/renders/turret_1_2.png" },
+      { era: 1, tier: 3, id: "turret_1_3", name: "原始重型投石机", enName: "Primitive Catapult", cost: 500, sell: 250, dmg: 30, rate: 3.0, range: 20.0, speed: 14.0, model: "./models/era1/turret_1_3.glb", render: "./public/renders/turret_1_3.png" },
+      { era: 2, tier: 1, id: "turret_2_1", name: "中世纪配重投石机", enName: "Stone Catapult", cost: 500, sell: 250, dmg: 32, rate: 2.2, range: 18.0, speed: 16.0, model: "./models/era2/turret_2_1.glb", render: "./public/renders/turret_2_1.png" },
+      { era: 2, tier: 2, id: "turret_2_2", name: "烈焰火油投石塔", enName: "Fire Catapult", cost: 750, sell: 375, dmg: 45, rate: 2.5, range: 18.0, speed: 15.0, model: "./models/era2/turret_2_2.glb", render: "./public/renders/turret_2_2.png" },
+      { era: 2, tier: 3, id: "turret_2_3", name: "城防沸油倾泻机", enName: "Boiling Oil Cauldron", cost: 1000, sell: 500, dmg: 60, rate: 1.5, range: 12.0, speed: 18.0, model: "./models/era2/turret_2_3.glb", render: "./public/renders/turret_2_3.png" },
+      { era: 3, tier: 1, id: "turret_3_1", name: "轻型前装滑膛炮", enName: "Small Cannon", cost: 1500, sell: 750, dmg: 50, rate: 2.0, range: 18.0, speed: 22.0, model: "./models/era3/turret_3_1.glb", render: "./public/renders/turret_3_1.png" },
+      { era: 3, tier: 2, id: "turret_3_2", name: "重型青铜要塞炮", enName: "Large Cannon", cost: 3000, sell: 1500, dmg: 65, rate: 2.2, range: 20.0, speed: 24.0, model: "./models/era3/turret_3_2.glb", render: "./public/renders/turret_3_2.png" },
+      { era: 3, tier: 3, id: "turret_3_3", name: "高爆霰弹加农炮", enName: "Explosive Cannon", cost: 6000, sell: 3000, dmg: 85, rate: 2.5, range: 22.0, speed: 25.0, model: "./models/era3/turret_3_3.glb", render: "./public/renders/turret_3_3.png" },
+      { era: 4, tier: 1, id: "turret_4_1", name: "单管高射速速射机枪塔", enName: "Single Turret Autocannon", cost: 7000, sell: 3500, dmg: 50, rate: 1.0, range: 19.0, speed: 28.0, model: "./models/era4/turret_4_1.glb", render: "./public/renders/turret_4_1.png" },
+      { era: 4, tier: 2, id: "turret_4_2", name: "多联装战术火箭发射塔", enName: "Rocket Launcher", cost: 9000, sell: 4500, dmg: 120, rate: 2.2, range: 22.0, speed: 20.0, model: "./models/era4/turret_4_2.glb", render: "./public/renders/turret_4_2.png" },
+      { era: 4, tier: 3, id: "turret_4_3", name: "双联重装防空高炮", enName: "Double Anti-Air Autocannon", cost: 14000, sell: 7000, dmg: 80, rate: 0.6, range: 20.0, speed: 30.0, model: "./models/era4/turret_4_3.glb", render: "./public/renders/turret_4_3.png" },
+      { era: 5, tier: 1, id: "turret_5_1", name: "钛合金脉冲突击炮", enName: "Titanium Shooter", cost: 24000, sell: 12000, dmg: 150, rate: 1.2, range: 22.0, speed: 32.0, model: "./models/era5/turret_5_1.glb", render: "./public/renders/turret_5_1.png" },
+      { era: 5, tier: 2, id: "turret_5_2", name: "高能聚焦激光炮塔", enName: "Laser Cannon", cost: 40000, sell: 20000, dmg: 120, rate: 0.8, range: 25.0, speed: 45.0, model: "./models/era5/turret_5_2.glb", render: "./public/renders/turret_5_2.png" },
+      { era: 5, tier: 3, id: "turret_5_3", name: "要塞重型离子轨道歼灭炮", enName: "Quantum Ion Annihilator", cost: 70000, sell: 35000, dmg: 250, rate: 1.5, range: 28.0, speed: 50.0, model: "./models/era5/turret_5_3.glb", render: "./public/renders/turret_5_3.png" }
+    ];
+
+    const ERA_NAMES = {
+      1: "第一时代：原始石器时代",
+      2: "第二时代：中世纪城堡时代",
+      3: "第三时代：近代文艺复兴时代",
+      4: "第四时代：现代工业战争时代",
+      5: "第五时代：未来星际科幻时代"
+    };
+
+    const canvas = document.getElementById('canvas-3d');
+    const container = document.getElementById('viewport-container');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(3.2, 2.4, 3.8);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 0.8, 0);
+    controls.maxPolarAngle = Math.PI / 2 + 0.1;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const dirLight1 = new THREE.DirectionalLight(0xfff5ea, 1.8);
+    dirLight1.position.set(5, 8, 6);
+    dirLight1.castShadow = true;
+    dirLight1.shadow.mapSize.width = 2048;
+    dirLight1.shadow.mapSize.height = 2048;
+    scene.add(dirLight1);
+
+    const dirLight2 = new THREE.DirectionalLight(0xaad4ff, 0.8);
+    dirLight2.position.set(-5, 4, -4);
+    scene.add(dirLight2);
+
+    const grid = new THREE.GridHelper(10, 20, 0x30363d, 0x21262d);
+    grid.position.y = 0;
+    scene.add(grid);
+
+    const shadowPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 10),
+      new THREE.ShadowMaterial({ opacity: 0.35 })
+    );
+    shadowPlane.rotation.x = -Math.PI / 2;
+    shadowPlane.position.y = -0.01;
+    shadowPlane.receiveShadow = true;
+    scene.add(shadowPlane);
+
+    const loader = new GLTFLoader();
+    let currentModel = null;
+    let autoRotate = true;
+    let wireframe = false;
+    let activeData = TURRETS_DATA[0];
+
+    const overlay = document.getElementById('loading-overlay');
+
+    function loadTurretModel(data) {
+      activeData = data;
+      overlay.classList.add('visible');
+
+      if (currentModel) {
+        scene.remove(currentModel);
+        currentModel = null;
+      }
+
+      loader.load(
+        data.model,
+        (gltf) => {
+          overlay.classList.remove('visible');
+          currentModel = gltf.scene;
+
+          const bbox = new THREE.Box3().setFromObject(currentModel);
+          const size = bbox.getSize(new THREE.Vector3());
+
+          let meshCount = 0;
+          currentModel.traverse((node) => {
+            if (node.isMesh) {
+              meshCount++;
+              node.castShadow = true;
+              node.receiveShadow = true;
+              if (wireframe && node.material) {
+                node.material.wireframe = true;
+              }
+            }
+          });
+
+          scene.add(currentModel);
+
+          document.getElementById('hud-title').innerText = data.name;
+          document.getElementById('hud-en-title').innerText = `${data.enName} (Age ${data.era} - Level ${data.tier})`;
+          document.getElementById('val-age').innerText = ERA_NAMES[data.era];
+          document.getElementById('val-cost').innerText = `${data.cost} 金币`;
+          document.getElementById('val-sell').innerText = `${data.sell} 金币`;
+          document.getElementById('val-damage').innerText = `${data.dmg} 点`;
+          document.getElementById('val-rate').innerText = `${data.rate} 秒/次`;
+          document.getElementById('val-range').innerText = `${data.range} 米`;
+          document.getElementById('val-speed').innerText = `${data.speed} 米/秒`;
+          document.getElementById('val-bbox').innerText = `${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)} 米`;
+          document.getElementById('val-meshes').innerText = `${meshCount} 个网格部件`;
+
+          controls.target.set(0, size.y * 0.5, 0);
+        },
+        undefined,
+        (err) => {
+          overlay.classList.remove('visible');
+          console.error("加载模型失败:", err);
+        }
+      );
+    }
+
+    const listContainer = document.getElementById('turret-list');
+    let currentEra = -1;
+    let eraGroupEl = null;
+
+    TURRETS_DATA.forEach((item, idx) => {
+      if (item.era !== currentEra) {
+        currentEra = item.era;
+        eraGroupEl = document.createElement('div');
+        eraGroupEl.className = 'era-group';
+        const titleEl = document.createElement('div');
+        titleEl.className = 'era-title';
+        titleEl.innerText = ERA_NAMES[currentEra];
+        eraGroupEl.appendChild(titleEl);
+        listContainer.appendChild(eraGroupEl);
+      }
+
+      const card = document.createElement('div');
+      card.className = `turret-card ${idx === 0 ? 'active' : ''}`;
+      card.setAttribute('data-id', item.id);
+      card.innerHTML = `
+        <img class="turret-thumb" src="${item.render}" alt="${item.name}">
+        <div class="turret-info">
+          <div class="turret-name">${item.name}</div>
+          <div class="turret-en-name">${item.enName}</div>
+          <div class="turret-cost">💰 ${item.cost} 金币</div>
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.turret-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        loadTurretModel(item);
+      });
+
+      eraGroupEl.appendChild(card);
+    });
+
+    loadTurretModel(TURRETS_DATA[0]);
+
+    const btnRotate = document.getElementById('btn-rotate');
+    btnRotate.addEventListener('click', () => {
+      autoRotate = !autoRotate;
+      btnRotate.classList.toggle('active', autoRotate);
+    });
+
+    const btnWireframe = document.getElementById('btn-wireframe');
+    btnWireframe.addEventListener('click', () => {
+      wireframe = !wireframe;
+      btnWireframe.classList.toggle('active', wireframe);
+      if (currentModel) {
+        currentModel.traverse((node) => {
+          if (node.isMesh && node.material) {
+            node.material.wireframe = wireframe;
+          }
+        });
+      }
+    });
+
+    const btnReset = document.getElementById('btn-reset');
+    btnReset.addEventListener('click', () => {
+      camera.position.set(3.2, 2.4, 3.8);
+      if (currentModel) {
+        const bbox = new THREE.Box3().setFromObject(currentModel);
+        const size = bbox.getSize(new THREE.Vector3());
+        controls.target.set(0, size.y * 0.5, 0);
+      } else {
+        controls.target.set(0, 0.8, 0);
+      }
+    });
+
+    const btnRender = document.getElementById('btn-render');
+    btnRender.addEventListener('click', () => {
+      if (activeData) {
+        window.open(activeData.render, '_blank');
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (autoRotate && currentModel) {
+        currentModel.rotation.y += 0.008;
+      }
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

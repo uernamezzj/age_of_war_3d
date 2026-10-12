@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《战争进化史 3D》自选大场景快速搭建与战道妨碍物物理截断工作室</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+      display: flex;
+    }
+    #canvas-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+    }
+
+    /* 顶部场景选择栏 */
+    #top-nav {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 40px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    .scene-tab {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #94a3b8;
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .scene-tab:hover {
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .scene-tab.active {
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+    .scene-tab.active[data-key="forest"] { background: linear-gradient(135deg, #15803d, #22c55e); border-color: #4ade80; }
+    .scene-tab.active[data-key="modern"] { background: linear-gradient(135deg, #0369a1, #0284c7); border-color: #38bdf8; }
+    .scene-tab.active[data-key="hannover"] { background: linear-gradient(135deg, #b45309, #d97706); border-color: #f59e0b; }
+    .scene-tab.active[data-key="space"] { background: linear-gradient(135deg, #6d28d9, #8b5cf6); border-color: #a78bfa; }
+
+    /* 版本形态切换器 (纯净版 vs 原始大场景) */
+    .version-switch {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      padding: 3px;
+      display: flex;
+      gap: 3px;
+      margin-left: 6px;
+    }
+    .ver-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .ver-btn.active {
+      background: #0284c7;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.5);
+    }
+
+    /* 左侧构件层级选取面板 */
+    #sidebar-left {
+      position: absolute;
+      top: 76px;
+      left: 16px;
+      bottom: 16px;
+      width: 290px;
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .tree-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-mini {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-mini:hover { color: #fff; background: #334155; }
+    .btn-mini.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+    #mesh-tree-container {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-right: 4px;
+    }
+    .mesh-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .mesh-item:hover { background: rgba(51, 65, 85, 0.8); }
+    .mesh-item.hidden-mesh { opacity: 0.45; text-decoration: line-through; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); }
+    .mesh-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 190px;
+    }
+    .eye-toggle {
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    /* 右侧快速搭建与背景调测面板 */
+    #sidebar-right {
+      position: absolute;
+      top: 76px;
+      right: 16px;
+      bottom: 16px;
+      width: 350px;
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(30, 41, 59, 0.5);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .control-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .control-label {
+      width: 85px;
+      color: #cbd5e1;
+      font-size: 11px;
+    }
+    .control-input {
+      flex: 1;
+      accent-color: #38bdf8;
+    }
+    .control-val {
+      width: 48px;
+      font-family: monospace;
+      font-size: 11px;
+      text-align: right;
+      color: #38bdf8;
+      font-weight: 700;
+    }
+
+    /* 物理截断专门面板 */
+    .clipper-group {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(15, 23, 42, 0.7));
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .btn-cut-action {
+      background: linear-gradient(135deg, #dc2626, #ef4444);
+      border: 1px solid #f87171;
+      color: #fff;
+      padding: 9px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+    }
+    .btn-cut-action:hover { background: #b91c1c; }
+
+    .select-field {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    /* 操作按钮 */
+    .btn-action {
+      background: #0284c7;
+      border: 1px solid #38bdf8;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+    .btn-action:hover { background: #0369a1; }
+
+    .btn-export {
+      background: linear-gradient(135deg, #059669, #10b981);
+      border: 1px solid #34d399;
+      color: #fff;
+      padding: 9px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    }
+    .btn-export:hover { background: #047857; }
+
+    #toast {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #059669;
+      color: #fff;
+      padding: 8px 22px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    #loading-toast {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      border-radius: 14px;
+      padding: 18px 34px;
+      font-size: 14px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      transition: opacity 0.3s;
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #38bdf8;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./node_modules/three/build/three.module.js",
+        "three/addons/": "./node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- 3D 主视口 -->
+  <div id="canvas-container"></div>
+
+  <!-- 顶部场景与版本选择栏 -->
+  <div id="top-nav">
+    <button class="scene-tab active" data-key="forest" onclick="selectScene('forest')">
+      <span>🌲</span> 1. 夜间森林大道
+    </button>
+    <button class="scene-tab" data-key="modern" onclick="selectScene('modern')">
+      <span>🪖</span> 2. 现代战争战场
+    </button>
+    <button class="scene-tab" data-key="hannover" onclick="selectScene('hannover')">
+      <span>🏙️</span> 3. 汉诺威城市街区
+    </button>
+    <button class="scene-tab" data-key="space" onclick="selectScene('space')">
+      <span>🌌</span> 4. 太空星际星云
+    </button>
+
+    <div class="version-switch">
+      <button class="ver-btn active" id="btn-ver-cleared" onclick="switchVersion('cleared')">
+        ⭐ 物理净空版 (0遮挡)
+      </button>
+      <button class="ver-btn" id="btn-ver-raw" onclick="switchVersion('raw')">
+        🔧 原始大场景 (动态截断)
+      </button>
+    </div>
+  </div>
+
+  <!-- 左侧：构件树检视与选择器 -->
+  <div id="sidebar-left">
+    <div class="panel-title">
+      <span>🧩 场景构件明细</span>
+      <div class="tree-actions">
+        <button class="btn-mini" onclick="toggleAllMeshes(true)">全显</button>
+        <button class="btn-mini" onclick="toggleAllMeshes(false)">全隐</button>
+      </div>
+    </div>
+    <div style="font-size:11px; color:#94a3b8; line-height:1.4;">
+      已截断/隐藏的零件将标红并划线，点击右侧眼睛随时可单独恢复或隐藏：
+    </div>
+    <div id="mesh-tree-container">正在加载构件树...</div>
+  </div>
+
+  <!-- 右侧：战场对齐与物理截断面板 -->
+  <div id="sidebar-right">
+    <div class="panel-title">
+      <span>🛠️ 战场净空控制台</span>
+      <button class="btn-mini" onclick="resetTransforms()">重置默认</button>
+    </div>
+
+    <!-- 核心：战道妨碍物物理截断器 -->
+    <div class="clipper-group">
+      <div style="font-size:12px; font-weight:800; color:#f87171; display:flex; justify-content:space-between; align-items:center;">
+        <span>✂️ 战道妨碍物智能截断器</span>
+        <span id="cull-count-badge" style="font-size:10px; background:#10b981; color:#fff; padding:2px 7px; border-radius:10px;">就绪</span>
+      </div>
+      <div style="font-size:11px; color:#fca5a5; line-height:1.4;">
+        自动扫描并隐藏踩在战道上、挡在士兵行军路线或阻挡镜头的多余物件：
+      </div>
+      <button class="btn-cut-action" onclick="autoClearObstacles()">
+        <span>⚡ 立即执行智能截断 (净空战场)</span>
+      </button>
+
+      <div class="control-row" style="margin-top:4px;">
+        <span class="control-label" style="color:#fecaca; width:85px;">硬件截面深度</span>
+        <input type="range" class="control-input" id="slider-clipZ" min="-15" max="25" step="0.5" value="3.5" oninput="updateClippingPlane()">
+        <span class="control-val" id="val-clipZ" style="color:#f87171;">3.5m</span>
+      </div>
+      <div style="font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; align-items:center;">
+        <span>靠前遮挡物件激光剖切</span>
+        <button class="btn-mini" id="btn-clip-toggle" style="font-size:10px; padding:2px 6px;" onclick="toggleClipPlane()">开启中</button>
+      </div>
+    </div>
+
+    <!-- 空间变换 -->
+    <div class="control-group">
+      <div class="control-title"><span>📐 空间变换 (Transform)</span></div>
+      <div class="control-row">
+        <span class="control-label">尺寸缩放</span>
+        <input type="range" class="control-input" id="slider-scale" min="0.01" max="50" step="0.01" oninput="updateTransform()">
+        <span class="control-val" id="val-scale">1.0</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">高度 (Y)</span>
+        <input type="range" class="control-input" id="slider-posY" min="-25" max="25" step="0.1" oninput="updateTransform()">
+        <span class="control-val" id="val-posY">0.0</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">景深 (Z)</span>
+        <input type="range" class="control-input" id="slider-posZ" min="-40" max="30" step="0.5" oninput="updateTransform()">
+        <span class="control-val" id="val-posZ">0.0</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">横移 (X)</span>
+        <input type="range" class="control-input" id="slider-posX" min="-50" max="50" step="0.5" oninput="updateTransform()">
+        <span class="control-val" id="val-posX">0.0</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">旋转 (Y)</span>
+        <input type="range" class="control-input" id="slider-rotY" min="0" max="360" step="1" oninput="updateTransform()">
+        <span class="control-val" id="val-rotY">0°</span>
+      </div>
+    </div>
+
+    <!-- 游戏参照物与安全战道提示 -->
+    <div class="control-group">
+      <div class="control-title"><span>⚔️ 游戏推线战道与参照物</span></div>
+      <div class="control-row">
+        <span class="control-label">时代基地</span>
+        <select class="select-field" id="select-base" onchange="changeReferenceBase()">
+          <option value="1">时代 1 · 原始石洞基地</option>
+          <option value="2">时代 2 · 中世纪城堡要塞</option>
+          <option value="3">时代 3 · 文艺复兴棱堡</option>
+          <option value="4" selected>时代 4 · 现代混凝土碉堡</option>
+          <option value="5">时代 5 · 未来量子星际堡垒</option>
+        </select>
+      </div>
+      <div class="control-row">
+        <span class="control-label">战道网格</span>
+        <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:#cbd5e1; cursor:pointer;">
+          <input type="checkbox" id="chk-road" checked onchange="toggleRoad(this.checked)"> 显示地面与行军主干道
+        </label>
+      </div>
+      <div class="control-row">
+        <span class="control-label">安全战廊</span>
+        <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:#4ade80; cursor:pointer;">
+          <input type="checkbox" id="chk-corridor" checked onchange="toggleCorridorBox(this.checked)"> 显示绿色净空安全框
+        </label>
+      </div>
+    </div>
+
+    <!-- 视角模式 -->
+    <div class="control-group">
+      <div class="control-title"><span>🎥 观察机位模式</span></div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+        <button class="btn-mini active" id="btn-cam-battle" onclick="setCameraMode('battle')">🎮 游戏推线实机</button>
+        <button class="btn-mini" id="btn-cam-orbit" onclick="setCameraMode('orbit')">🌐 360° 上帝航拍</button>
+      </div>
+    </div>
+
+    <!-- 导出独立 GLB 模型 -->
+    <button class="btn-export" onclick="exportCleanGLB()">
+      <span>💾 导出当前净空模型为独立 GLB</span>
+    </button>
+
+    <!-- 复制配置代码 -->
+    <button class="btn-action" onclick="copyConfig()">
+      <span>📋 复制当前净空背景配置代码</span>
+    </button>
+  </div>
+
+  <div id="toast">✅ 截断净空完成！</div>
+
+  <div id="loading-toast" style="display:none;">
+    <div class="spinner"></div>
+    <span id="loading-text">正在装载自选场景模型...</span>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+    let scene, camera, renderer, controls;
+    const gltfLoader = new GLTFLoader();
+    const gltfExporter = new GLTFExporter();
+
+    // 4 大用户场景 (包含已剔除妨碍物的纯净版与原始大模型)
+    const USER_SCENES = {
+      forest: {
+        title: '夜间森林大道',
+        rawFile: './models/custom_scenes/forest_night_road.glb',
+        clearedFile: './models/custom_scenes/forest_night_road_cleared.glb',
+        rawScale: 1.0,
+        rawPos: [-7, 0, -8],
+        rawRot: 0,
+        clearedScale: 2.37,
+        clearedPos: [-32.0, -5.1, 30.0],
+        clearedRot: 0,
+        clipZ: 3.5,
+        skyColor: 0x030712
+      },
+      modern: {
+        title: '现代战争战场',
+        rawFile: './models/custom_scenes/modern_war.glb',
+        clearedFile: './models/custom_scenes/modern_war_cleared.glb',
+        rawScale: 0.55,
+        rawPos: [-7, 0, -12],
+        rawRot: 0,
+        clearedScale: 0.65,
+        clearedPos: [0.5, -1.9, 0.0],
+        clearedRot: 0,
+        clipZ: -4.5,
+        skyColor: 0x1e293b
+      },
+      hannover: {
+        title: '汉诺威城市街区',
+        rawFile: './models/custom_scenes/city_hannover.glb',
+        clearedFile: './models/custom_scenes/city_hannover_cleared.glb',
+        rawScale: 35.0,
+        rawPos: [-7, 0, -8],
+        rawRot: 0,
+        clearedScale: 1.16,
+        clearedPos: [0.5, -0.1, 6.5],
+        clearedRot: 0,
+        clipZ: -5.5,
+        skyColor: 0x38bdf8
+      },
+      space: {
+        title: '太空星际星云',
+        rawFile: './models/custom_scenes/space_nebula.glb',
+        clearedFile: './models/custom_scenes/space_nebula_cleared.glb',
+        rawScale: 0.8,
+        rawPos: [-7, 0, -25],
+        rawRot: 0,
+        clearedScale: 14.20,
+        clearedPos: [-27.0, -19.2, 0.0],
+        clearedRot: 0,
+        clipZ: 5.0,
+        skyColor: 0x020617
+      }
+    };
+
+    let currentKey = 'forest';
+    let currentVersion = 'cleared'; // 'cleared' (物理净空版) 或 'raw' (原始大模型)
+    let currentModel = null;
+    const subMeshItems = [];
+
+    // 硬件级物理裁剪平面：法线 (0, 0, -1)，常数 clipZ
+    // 距离函数：d = -z + clipZ >= 0 => z <= clipZ 保留背景与道路，z > clipZ (镜头前方遮挡物) 彻底切除！
+    let clipPlaneEnabled = true;
+    const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 3.5);
+
+    const customSceneGroup = new THREE.Group();
+    const gameLaneGroup = new THREE.Group();
+    const activeMixers = [];
+
+    let hemiLight, dirLight;
+    let groundMesh, roadMesh;
+    let corridorBoxHelper;
+
+    // 核心战道推线安全警戒盒：X: -32 ~ 18, Y: -0.5 ~ 12, Z: -4.0 ~ 4.0
+    const battleCorridorBox = new THREE.Box3(
+      new THREE.Vector3(-32, -0.5, -4.0),
+      new THREE.Vector3(18, 12.0, 4.0)
+    );
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.fog = null; // 雾气彻底清零，通透清晰
+
+      camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 500);
+      camera.position.set(-7, 13, 36);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.35;
+      
+      // 启用硬件级局部物理剖切
+      renderer.localClippingEnabled = true;
+
+      container.appendChild(renderer.domElement);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.target.set(-7, 2.0, 0);
+      controls.maxPolarAngle = Math.PI / 2 - 0.01;
+
+      hemiLight = new THREE.HemisphereLight(0xffffff, 0x555555, 1.4);
+      scene.add(hemiLight);
+
+      dirLight = new THREE.DirectionalLight(0xffffff, 2.2);
+      dirLight.position.set(-20, 45, 35);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.camera.near = 0.5;
+      dirLight.shadow.camera.far = 150;
+      dirLight.shadow.camera.left = -60;
+      dirLight.shadow.camera.right = 60;
+      dirLight.shadow.camera.top = 40;
+      dirLight.shadow.camera.bottom = -40;
+      dirLight.shadow.bias = -0.0004;
+      scene.add(dirLight);
+
+      // 构建游戏战道基础设施
+      buildGameLane();
+
+      // 安全战廊辅助网格框 (绿色半透明)
+      corridorBoxHelper = new THREE.Box3Helper(battleCorridorBox, 0x10b981);
+      scene.add(corridorBoxHelper);
+
+      scene.add(customSceneGroup);
+      scene.add(gameLaneGroup);
+
+      window.addEventListener('resize', onResize);
+
+      // 读取 URL 参数支持快速定位
+      const urlParams = new URLSearchParams(window.location.search);
+      const initialScene = urlParams.get('scene') || 'forest';
+      const initialVer = urlParams.get('ver') || 'cleared';
+      currentVersion = initialVer;
+      document.getElementById('btn-ver-cleared').classList.toggle('active', currentVersion === 'cleared');
+      document.getElementById('btn-ver-raw').classList.toggle('active', currentVersion === 'raw');
+      selectScene(initialScene);
+
+      animate();
+    }
+
+    function buildGameLane() {
+      const groundGeo = new THREE.PlaneGeometry(160, 60);
+      const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
+      groundMesh = new THREE.Mesh(groundGeo, groundMat);
+      groundMesh.rotation.x = -Math.PI / 2;
+      groundMesh.position.set(0, -0.02, 0);
+      groundMesh.receiveShadow = true;
+      gameLaneGroup.add(groundMesh);
+
+      const roadGeo = new THREE.PlaneGeometry(100, 7.5);
+      const roadMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+      roadMesh = new THREE.Mesh(roadGeo, roadMat);
+      roadMesh.rotation.x = -Math.PI / 2;
+      roadMesh.position.set(0, 0, 0);
+      roadMesh.receiveShadow = true;
+      gameLaneGroup.add(roadMesh);
+
+      const curbGeo = new THREE.BoxGeometry(100, 0.16, 0.35);
+      const curbMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+      const curbNorth = new THREE.Mesh(curbGeo, curbMat);
+      curbNorth.position.set(0, 0.08, 3.8);
+      gameLaneGroup.add(curbNorth);
+
+      const curbSouth = curbNorth.clone();
+      curbSouth.position.z = -3.8;
+      gameLaneGroup.add(curbSouth);
+
+      loadReferenceArmies(4);
+    }
+
+    let currentAllyBase = null;
+    let currentEnemyBase = null;
+    let currentSoldier = null;
+
+    async function loadReferenceArmies(era) {
+      const eraMap = {
+        1: { base: './models/era1/base_1.glb', soldier: './models/era1/caveman_1.glb', scale: 1.0 },
+        2: { base: './models/era2/base_2.glb', soldier: './models/era2/swordman_1.glb', scale: 1.0 },
+        3: { base: './models/era3/base_3.glb', soldier: './models/era3/knight_1.glb', scale: 1.0 },
+        4: { base: './models/era4/base_4.glb', soldier: './models/era4/soldier_1.glb', scale: 1.0 },
+        5: { base: './models/era5/base_5.glb', soldier: './models/era5/trooper_1.glb', scale: 1.1 }
+      };
+
+      const info = eraMap[era] || eraMap[4];
+
+      if (currentAllyBase) gameLaneGroup.remove(currentAllyBase);
+      if (currentEnemyBase) gameLaneGroup.remove(currentEnemyBase);
+      if (currentSoldier) gameLaneGroup.remove(currentSoldier);
+      activeMixers.length = 0;
+
+      try {
+        const baseGltf = await loadGLB(info.base);
+        currentAllyBase = baseGltf.scene.clone();
+        currentAllyBase.scale.setScalar(0.75);
+        currentAllyBase.position.set(-26, 0, 0);
+        gameLaneGroup.add(currentAllyBase);
+
+        currentEnemyBase = baseGltf.scene.clone();
+        currentEnemyBase.scale.setScalar(0.75);
+        currentEnemyBase.rotation.y = Math.PI;
+        currentEnemyBase.position.set(12, 0, 0);
+        gameLaneGroup.add(currentEnemyBase);
+
+        const soldierGltf = await loadGLB(info.soldier);
+        currentSoldier = soldierGltf.scene;
+        currentSoldier.scale.setScalar(info.scale);
+        currentSoldier.position.set(-7, 0, 0);
+        currentSoldier.rotation.y = Math.PI / 2;
+        gameLaneGroup.add(currentSoldier);
+
+        if (soldierGltf.animations && soldierGltf.animations.length > 0) {
+          const mixer = new THREE.AnimationMixer(currentSoldier);
+          const clip = soldierGltf.animations.find(c => c.name.toLowerCase().includes('walk')) || soldierGltf.animations[0];
+          mixer.clipAction(clip).play();
+          activeMixers.push(mixer);
+        }
+      } catch (e) {
+        console.warn("Armies load warning:", e);
+      }
+    }
+
+    // 切换形态版本 (物理净空版 vs 原始大场景)
+    window.switchVersion = function(ver) {
+      currentVersion = ver;
+      document.getElementById('btn-ver-cleared').classList.toggle('active', ver === 'cleared');
+      document.getElementById('btn-ver-raw').classList.toggle('active', ver === 'raw');
+      selectScene(currentKey);
+    };
+
+    // 切换大场景
+    window.selectScene = async function(key) {
+      currentKey = key;
+      const data = USER_SCENES[key];
+
+      document.querySelectorAll('.scene-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.key === key);
+      });
+
+      const isCleared = (currentVersion === 'cleared');
+      const targetFile = isCleared ? data.clearedFile : data.rawFile;
+      const targetScale = isCleared ? data.clearedScale : data.rawScale;
+      const targetPos = isCleared ? data.clearedPos : data.rawPos;
+      const targetRot = isCleared ? data.clearedRot : data.rawRot;
+
+      showLoading(`正在装入【${data.title}】(${isCleared ? '物理净空版' : '原始模型'})...`);
+
+      scene.background = new THREE.Color(data.skyColor);
+
+      while (customSceneGroup.children.length > 0) {
+        customSceneGroup.remove(customSceneGroup.children[0]);
+      }
+      subMeshItems.length = 0;
+
+      try {
+        const gltf = await loadGLB(targetFile);
+        currentModel = gltf.scene;
+
+        currentModel.traverse(child => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              child.material.clippingPlanes = clipPlaneEnabled ? [clipPlane] : [];
+              child.material.clipShadows = true;
+              child.material.needsUpdate = true;
+            }
+          }
+        });
+
+        customSceneGroup.add(currentModel);
+
+        // 初始化变换参数
+        document.getElementById('slider-scale').value = targetScale;
+        document.getElementById('slider-posX').value = targetPos[0];
+        document.getElementById('slider-posY').value = targetPos[1];
+        document.getElementById('slider-posZ').value = targetPos[2];
+        document.getElementById('slider-rotY').value = targetRot;
+
+        document.getElementById('slider-clipZ').value = data.clipZ;
+        updateClippingPlane();
+        updateTransform();
+
+        buildMeshTree(currentModel);
+
+        // 如果是原始大模型，自动执行智能截断确保战道无阻
+        if (!isCleared) {
+          autoClearObstacles(false);
+        } else {
+          document.getElementById('cull-count-badge').innerText = '0 遮挡 · 净空就绪';
+          document.getElementById('cull-count-badge').style.background = '#10b981';
+        }
+
+        hideLoading();
+      } catch (err) {
+        console.error("加载大场景失败:", err);
+        hideLoading();
+      }
+    };
+
+    // 硬件截面实时调整 (d = -z + clipZ >= 0 => z <= clipZ 保留，z > clipZ 激光剖切)
+    window.updateClippingPlane = function() {
+      const zVal = parseFloat(document.getElementById('slider-clipZ').value);
+      clipPlane.constant = zVal;
+      document.getElementById('val-clipZ').innerText = `${zVal.toFixed(1)}m`;
+    };
+
+    window.toggleClipPlane = function() {
+      clipPlaneEnabled = !clipPlaneEnabled;
+      if (currentModel) {
+        currentModel.traverse(child => {
+          if (child.isMesh && child.material) {
+            child.material.clippingPlanes = clipPlaneEnabled ? [clipPlane] : [];
+            child.material.needsUpdate = true;
+          }
+        });
+      }
+      const btn = document.getElementById('btn-clip-toggle');
+      btn.innerText = clipPlaneEnabled ? '开启中' : '已关闭';
+      btn.classList.toggle('active', clipPlaneEnabled);
+      showToast(clipPlaneEnabled ? '✂️ 激光硬件剖切已开启！' : '🚫 硬件剖切已关闭！');
+    };
+
+    // 核心：智能截掉所有穿入战道或挡在镜头前的物件
+    window.autoClearObstacles = function(notify = true) {
+      if (!currentModel) return;
+
+      let culledCount = 0;
+      let keptCount = 0;
+      const meshBox = new THREE.Box3();
+
+      currentModel.traverse(child => {
+        if (child.isMesh) {
+          meshBox.setFromObject(child);
+
+          // 1. 挡在镜头前方 (Z > 3.5)
+          const isForeground = meshBox.max.z > 3.5;
+          // 2. 踩在推线走廊上 (X: -32~18, Z: -4~4)
+          const isInLane = battleCorridorBox.intersectsBox(meshBox);
+
+          if (isForeground || isInLane) {
+            child.visible = false;
+            culledCount++;
+          } else {
+            child.visible = true;
+            keptCount++;
+          }
+        }
+      });
+
+      refreshTreeItems();
+
+      document.getElementById('cull-count-badge').innerText = `已截断 ${culledCount} 处`;
+      document.getElementById('cull-count-badge').style.background = '#10b981';
+
+      if (notify) {
+        showToast(`🎉 成功智能截掉 ${culledCount} 处挡道物件！保留 ${keptCount} 处背景构件！`);
+      }
+    };
+
+    // 构建构件树列表
+    function buildMeshTree(root) {
+      const container = document.getElementById('mesh-tree-container');
+      container.innerHTML = '';
+      subMeshItems.length = 0;
+
+      let count = 0;
+      root.traverse(child => {
+        if (child.isMesh && count < 80) {
+          count++;
+          subMeshItems.push(child);
+
+          const div = document.createElement('div');
+          div.className = 'mesh-item';
+          div.id = `mesh-item-${count}`;
+
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'mesh-name';
+          nameSpan.title = child.name || `Mesh_${count}`;
+          nameSpan.innerText = `${count}. ${child.name || `Mesh_${count}`}`;
+
+          const eyeSpan = document.createElement('span');
+          eyeSpan.className = 'eye-toggle';
+          eyeSpan.innerText = child.visible ? '👁️' : '🚫';
+
+          eyeSpan.onclick = (e) => {
+            e.stopPropagation();
+            child.visible = !child.visible;
+            eyeSpan.innerText = child.visible ? '👁️' : '🚫';
+            div.classList.toggle('hidden-mesh', !child.visible);
+          };
+
+          div.appendChild(nameSpan);
+          div.appendChild(eyeSpan);
+          container.appendChild(div);
+        }
+      });
+    }
+
+    function refreshTreeItems() {
+      subMeshItems.forEach((child, idx) => {
+        const div = document.getElementById(`mesh-item-${idx + 1}`);
+        if (div) {
+          div.classList.toggle('hidden-mesh', !child.visible);
+          div.querySelector('.eye-toggle').innerText = child.visible ? '👁️' : '🚫';
+        }
+      });
+    }
+
+    window.toggleAllMeshes = function(visible) {
+      if (currentModel) {
+        currentModel.traverse(c => { if (c.isMesh) c.visible = visible; });
+      }
+      refreshTreeItems();
+      showToast(visible ? '全部构件已恢复显示' : '全部构件已临时隐藏');
+    };
+
+    // 变换更新
+    window.updateTransform = function() {
+      if (!currentModel) return;
+
+      const scale = parseFloat(document.getElementById('slider-scale').value);
+      const posX = parseFloat(document.getElementById('slider-posX').value);
+      const posY = parseFloat(document.getElementById('slider-posY').value);
+      const posZ = parseFloat(document.getElementById('slider-posZ').value);
+      const rotY = parseFloat(document.getElementById('slider-rotY').value);
+
+      currentModel.scale.setScalar(scale);
+      currentModel.position.set(posX, posY, posZ);
+      currentModel.rotation.y = rotY * Math.PI / 180;
+
+      document.getElementById('val-scale').innerText = scale.toFixed(2);
+      document.getElementById('val-posX').innerText = posX.toFixed(1);
+      document.getElementById('val-posY').innerText = posY.toFixed(1);
+      document.getElementById('val-posZ').innerText = posZ.toFixed(1);
+      document.getElementById('val-rotY').innerText = `${Math.round(rotY)}°`;
+    };
+
+    window.resetTransforms = function() {
+      const data = USER_SCENES[currentKey];
+      const isCleared = (currentVersion === 'cleared');
+      document.getElementById('slider-scale').value = isCleared ? data.clearedScale : data.rawScale;
+      document.getElementById('slider-posX').value = isCleared ? data.clearedPos[0] : data.rawPos[0];
+      document.getElementById('slider-posY').value = isCleared ? data.clearedPos[1] : data.rawPos[1];
+      document.getElementById('slider-posZ').value = isCleared ? data.clearedPos[2] : data.rawPos[2];
+      document.getElementById('slider-rotY').value = isCleared ? data.clearedRot : data.rawRot;
+      document.getElementById('slider-clipZ').value = data.clipZ;
+      updateClippingPlane();
+      updateTransform();
+      toggleAllMeshes(true);
+      if (!isCleared) autoClearObstacles(false);
+    };
+
+    window.changeReferenceBase = function() {
+      const val = parseInt(document.getElementById('select-base').value);
+      loadReferenceArmies(val);
+    };
+
+    window.toggleRoad = function(checked) {
+      gameLaneGroup.visible = checked;
+    };
+
+    window.toggleCorridorBox = function(checked) {
+      corridorBoxHelper.visible = checked;
+    };
+
+    window.setCameraMode = function(mode) {
+      document.getElementById('btn-cam-battle').classList.toggle('active', mode === 'battle');
+      document.getElementById('btn-cam-orbit').classList.toggle('active', mode === 'orbit');
+      if (mode === 'battle') {
+        camera.position.set(-7, 13, 36);
+        controls.target.set(-7, 2.0, 0);
+      } else if (mode === 'orbit') {
+        camera.position.set(-7, 28, 45);
+        controls.target.set(-7, 0, 0);
+      }
+    };
+
+    // 导出干净的 GLB 模型
+    window.exportCleanGLB = function() {
+      if (!currentModel) return;
+
+      showLoading('正在将净空模型导出为 GLB 二进制文件...');
+
+      // 创建干净的导出克隆
+      const exportGroup = new THREE.Group();
+      currentModel.traverse(c => {
+        if (c.isMesh && c.visible) {
+          const cloneMesh = c.clone();
+          cloneMesh.applyMatrix4(c.matrixWorld);
+          exportGroup.add(cloneMesh);
+        }
+      });
+
+      gltfExporter.parse(
+        exportGroup,
+        (gltf) => {
+          hideLoading();
+          const blob = new Blob([gltf], { type: 'application/octet-stream' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `${currentKey}_battlefield_cleared.glb`;
+          link.click();
+          showToast(`💾 成功下载 ${currentKey}_battlefield_cleared.glb！`);
+        },
+        (error) => {
+          hideLoading();
+          console.error('Export error:', error);
+          showToast('❌ 导出 GLB 失败，请查看控制台日志');
+        },
+        { binary: true }
+      );
+    };
+
+    // 复制配置
+    window.copyConfig = function() {
+      const scale = parseFloat(document.getElementById('slider-scale').value);
+      const posX = parseFloat(document.getElementById('slider-posX').value);
+      const posY = parseFloat(document.getElementById('slider-posY').value);
+      const posZ = parseFloat(document.getElementById('slider-posZ').value);
+      const rotY = parseFloat(document.getElementById('slider-rotY').value);
+      const clipZ = parseFloat(document.getElementById('slider-clipZ').value);
+
+      const targetFile = (currentVersion === 'cleared') ? USER_SCENES[currentKey].clearedFile : USER_SCENES[currentKey].rawFile;
+
+      const code = `// ${USER_SCENES[currentKey].title} (${currentVersion === 'cleared' ? '物理净空版' : '动态截断版'})\n{\n  file: '${targetFile}',\n  scale: ${scale.toFixed(2)},\n  position: [${posX.toFixed(1)}, ${posY.toFixed(1)}, ${posZ.toFixed(1)}],\n  rotationY: ${(rotY * Math.PI / 180).toFixed(3)},\n  clipZ: ${clipZ.toFixed(1)}\n}`;
+
+      navigator.clipboard.writeText(code).then(() => {
+        showToast('📋 净空配置已成功复制到剪贴板！');
+      });
+    };
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.style.opacity = '1';
+      setTimeout(() => t.style.opacity = '0', 2500);
+    }
+
+    function loadGLB(url) {
+      return new Promise((resolve, reject) => {
+        gltfLoader.load(url, resolve, undefined, reject);
+      });
+    }
+
+    function showLoading(text) {
+      const el = document.getElementById('loading-toast');
+      document.getElementById('loading-text').innerText = text;
+      el.style.display = 'flex';
+    }
+
+    function hideLoading() {
+      const el = document.getElementById('loading-toast');
+      el.style.display = 'none';
+    }
+
+    function onResize() {
+      const container = document.getElementById('canvas-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      for (const m of activeMixers) m.update(delta);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    init();
+  </script>
+</body>
+</html>

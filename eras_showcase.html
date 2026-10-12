@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《战争进化史 3D》五大时代场景与 3D 模型全景检视台</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* 顶部时代导航栏 */
+    #top-nav {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 40px;
+      padding: 6px 10px;
+      display: flex;
+      gap: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    .era-tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #94a3b8;
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .era-tab-btn:hover {
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .era-tab-btn.active {
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+    .era-tab-btn.active[data-era="1"] { background: linear-gradient(135deg, #b45309, #d97706); border-color: #f59e0b; }
+    .era-tab-btn.active[data-era="2"] { background: linear-gradient(135deg, #15803d, #22c55e); border-color: #4ade80; }
+    .era-tab-btn.active[data-era="3"] { background: linear-gradient(135deg, #6d28d9, #8b5cf6); border-color: #a78bfa; }
+    .era-tab-btn.active[data-era="4"] { background: linear-gradient(135deg, #0369a1, #0284c7); border-color: #38bdf8; }
+    .era-tab-btn.active[data-era="5"] { background: linear-gradient(135deg, #be185d, #ec4899); border-color: #f472b6; }
+
+    /* 左侧聚焦导航面板 */
+    #sidebar-left {
+      position: absolute;
+      top: 80px;
+      left: 20px;
+      z-index: 20;
+      width: 250px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sidebar-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .focus-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .focus-btn:hover {
+      background: #334155;
+      color: #fff;
+      border-color: #64748b;
+    }
+    .focus-btn.active {
+      background: #0284c7;
+      color: #fff;
+      border-color: #38bdf8;
+      box-shadow: 0 2px 10px rgba(2, 132, 199, 0.4);
+    }
+    .focus-btn .icon { font-size: 15px; }
+
+    /* 右侧详细资料卡片 */
+    #sidebar-right {
+      position: absolute;
+      top: 80px;
+      right: 20px;
+      z-index: 20;
+      width: 320px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .info-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 8px;
+    }
+    .info-era-tag {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #38bdf8;
+    }
+    .info-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+    .info-desc {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .spec-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: rgba(30, 41, 59, 0.6);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .spec-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .spec-label {
+      font-size: 10px;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+    .spec-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: #e2e8f0;
+      font-family: monospace;
+    }
+
+    /* 底部动作控制条 */
+    #bottom-dock {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 30px;
+      padding: 8px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    .anim-title {
+      font-size: 11px;
+      color: #94a3b8;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding-right: 6px;
+      border-right: 1px solid #334155;
+    }
+    .anim-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .anim-btn:hover { background: #334155; color: #fff; }
+    .anim-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+
+    /* 全屏加载指示器 */
+    #loading-toast {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid #0284c7;
+      border-radius: 20px;
+      padding: 8px 18px;
+      font-size: 12px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid #0284c7;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 快捷键提示 */
+    .shortcut-badge {
+      font-size: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-left: auto;
+      color: #94a3b8;
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./node_modules/three/build/three.module.js",
+        "three/addons/": "./node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- 顶部时代选择 -->
+  <div id="top-nav">
+    <button class="era-tab-btn active" data-era="1" onclick="switchEra(1)">
+      <span>🌋</span> 1. 原始石器时代
+      <span class="shortcut-badge">[1]</span>
+    </button>
+    <button class="era-tab-btn" data-era="2" onclick="switchEra(2)">
+      <span>🛡️</span> 2. 中世纪城堡
+      <span class="shortcut-badge">[2]</span>
+    </button>
+    <button class="era-tab-btn" data-era="3" onclick="switchEra(3)">
+      <span>🏰</span> 3. 文艺复兴火药
+      <span class="shortcut-badge">[3]</span>
+    </button>
+    <button class="era-tab-btn" data-era="4" onclick="switchEra(4)">
+      <span>🪖</span> 4. 现代工业战争
+      <span class="shortcut-badge">[4]</span>
+    </button>
+    <button class="era-tab-btn" data-era="5" onclick="switchEra(5)">
+      <span>🤖</span> 5. 未来量子科幻
+      <span class="shortcut-badge">[5]</span>
+    </button>
+  </div>
+
+  <!-- 左侧聚焦切换 -->
+  <div id="sidebar-left">
+    <div class="sidebar-title">
+      <span>🔍 视角与检视目标</span>
+      <span style="font-size:10px; color:#64748b;">ESC 还原</span>
+    </div>
+    <button class="focus-btn active" id="btn-focus-all" onclick="focusTarget('all')">
+      <span class="icon">🔭</span>
+      <span>战场全景推线走廊</span>
+    </button>
+    <button class="focus-btn" id="btn-focus-base" onclick="focusTarget('base')">
+      <span class="icon">🏰</span>
+      <span id="label-focus-base">时代要塞大本营</span>
+    </button>
+    <button class="focus-btn" id="btn-focus-unit1" onclick="focusTarget('unit1')">
+      <span class="icon">⚔️</span>
+      <span id="label-focus-unit1">1号兵种：近战主力</span>
+    </button>
+    <button class="focus-btn" id="btn-focus-unit2" onclick="focusTarget('unit2')">
+      <span class="icon">🏹</span>
+      <span id="label-focus-unit2">2号兵种：远程支援</span>
+    </button>
+    <button class="focus-btn" id="btn-focus-unit3" onclick="focusTarget('unit3')">
+      <span class="icon">🛡️</span>
+      <span id="label-focus-unit3">3号兵种：精锐重装</span>
+    </button>
+    <button class="focus-btn" id="btn-focus-turret" onclick="focusTarget('turret')">
+      <span class="icon">🎯</span>
+      <span>时代防御炮塔列阵</span>
+    </button>
+    <button class="focus-btn" id="btn-focus-special" onclick="focusTarget('special')">
+      <span class="icon">⚡</span>
+      <span id="label-focus-special">时代全屏终极大招</span>
+    </button>
+  </div>
+
+  <!-- 右侧详情资料 -->
+  <div id="sidebar-right">
+    <div class="info-header">
+      <div class="info-era-tag" id="era-tag">ERA 1 · STONE AGE</div>
+      <div class="info-title" id="info-title">原始石器时代要塞</div>
+    </div>
+    <div class="info-desc" id="info-desc">
+      荒蛮黄土与风化巨石交错。人类依靠磨制石块与木槌构筑庇护所，通过弹弓与巨木防御野兽与敌对部落。
+    </div>
+    <div class="spec-grid">
+      <div class="spec-item">
+        <span class="spec-label">当前检视对象</span>
+        <span class="spec-val" id="spec-target">全景长廊</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">模型资产格式</span>
+        <span class="spec-val" id="spec-format">GLTF / GLB 2.0</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">骨骼动作支持</span>
+        <span class="spec-val" id="spec-anims">Idle/Walk/Atk</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">环境氛围配色</span>
+        <span class="spec-val" id="spec-ambient">荒原暖阳 #d4a373</span>
+      </div>
+    </div>
+    <div style="font-size:11px; color:#64748b; line-height:1.5; background:rgba(0,0,0,0.25); padding:8px; border-radius:6px;">
+      💡 <b>操作指南</b>：鼠标左键按住拖拽旋转视角，右键平移，滚轮缩放；点击左侧按钮平滑聚焦特写细节。
+    </div>
+  </div>
+
+  <!-- 底部动作条 -->
+  <div id="bottom-dock">
+    <span class="anim-title">动作切换 (Actions)</span>
+    <div id="anim-buttons" style="display:flex; gap:8px;">
+      <button class="anim-btn active" onclick="playAnim('Walk')">迈步行军 (Walk)</button>
+      <button class="anim-btn" onclick="playAnim('Attack')">挥砍攻击 (Attack)</button>
+      <button class="anim-btn" onclick="playAnim('Idle')">战备待机 (Idle)</button>
+      <button class="anim-btn" onclick="playAnim('Die')">受击击倒 (Die)</button>
+    </div>
+  </div>
+
+  <!-- 加载状态 -->
+  <div id="loading-toast" style="opacity: 0;">
+    <div class="spinner"></div>
+    <span id="loading-text">正在载入时代 3D 资产...</span>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    // 时代完整数据字典
+    const ERAS_DATA = {
+      1: {
+        name: '原始石器时代 (Stone Age)',
+        tag: 'ERA 1 · STONE AGE',
+        bgColor: 0x241d17,
+        fogColor: 0xd4a373,
+        fogDensity: 0.014,
+        groundColor: 0x8c6b43, // 黄褐沙质土地
+        groundRough: 0.95,
+        roadColor: 0x6e5233,
+        lightColor: 0xffe0b2,
+        lightIntensity: 1.6,
+        desc: '荒蛮黄土与原始巨石交错。部落用粗糙石块与木槌构筑庇护洞穴，依靠原始弹弓与石锤展开正面冲突。',
+        base: { file: './models/era1/base_1.glb', scale: 0.75, pos: [-20, 0, 0], rot: [0, 0, 0], name: '原始石洞大本营' },
+        units: [
+          { file: './models/era1/caveman_1.glb', scale: 1.0, pos: [-6, 0, -1], rot: [0, Math.PI / 2, 0], name: '棒槌野人 (Club Savage)' },
+          { file: './models/era1/caveman_2.glb', scale: 1.0, pos: [0, 0, 0], rot: [0, Math.PI / 2, 0], name: '弹弓野人 (Slingshot Savage)' },
+          { file: './models/era1/caveman_3.glb', scale: 1.1, pos: [6, 0, 1], rot: [0, Math.PI / 2, 0], name: '骑恐龙野人 (Dino Rider)' }
+        ],
+        turrets: [
+          { file: './models/era1/turret_1_1.glb', scale: 0.7, pos: [-20, 4.3, 0], name: '原始弹弓塔' }
+        ],
+        special: { file: './models/era1/special_meteor.glb', scale: 0.8, pos: [14, 5, 0], rot: [0, 0, -0.4], name: '天降熔岩流星雨 (Meteor Rain)' },
+        env: [
+          { file: './models/environment/rock_1.glb', scale: 1.5, pos: [-12, 0, 8] },
+          { file: './models/environment/trunk_1.glb', scale: 1.2, pos: [10, 0, -7] },
+          { file: './models/environment/bush_1.glb', scale: 1.0, pos: [2, 0, 7] }
+        ]
+      },
+      2: {
+        name: '中世纪铁血城堡 (Medieval Era)',
+        tag: 'ERA 2 · MEDIEVAL ERA',
+        bgColor: 0x111c14,
+        fogColor: 0x7fa282,
+        fogDensity: 0.013,
+        groundColor: 0x2d4f29, // 湿润绿草地
+        groundRough: 0.85,
+        roadColor: 0x5a4a3a, // 泥泞土车道
+        lightColor: 0xf0fdf4,
+        lightIntensity: 1.7,
+        desc: '绿茵草甸与针叶松林覆盖的欧洲大陆。中世纪木石前哨坚固林立，长弓破甲、重装步兵与十字弩成为正面中坚。',
+        base: { file: './models/era2/base_2.glb', scale: 0.75, pos: [-20, 0, 0], rot: [0, 0, 0], name: '木石前哨要塞' },
+        units: [
+          { file: './models/era2/swordman_1.glb', scale: 1.0, pos: [-6, 0, -1], rot: [0, Math.PI / 2, 0], name: '短剑近卫 (Swordsman)' },
+          { file: './models/era2/swordman_2.glb', scale: 1.0, pos: [0, 0, 0], rot: [0, Math.PI / 2, 0], name: '破甲长弓手 (Archer)' },
+          { file: './models/era2/swordman_3.glb', scale: 1.0, pos: [6, 0, 1], rot: [0, Math.PI / 2, 0], name: '持斧重装步兵 (Axeman)' }
+        ],
+        turrets: [
+          { file: './models/era2/turret_2_1.glb', scale: 0.8, pos: [-20, 4.5, 0], name: '重型十字弩炮塔' }
+        ],
+        special: { file: './models/era2/special_claymore.glb', scale: 0.7, pos: [14, 4, 0], rot: [Math.PI, 0, 0], name: '天谴圣剑降临 (Holy Swords)' },
+        env: [
+          { file: './models/environment/pine_1.glb', scale: 0.7, pos: [-10, 0, 8] },
+          { file: './models/environment/tree_1.glb', scale: 0.8, pos: [12, 0, -8] },
+          { file: './models/environment/bush_2.glb', scale: 0.6, pos: [-2, 0, 7] }
+        ]
+      },
+      3: {
+        name: '文艺复兴火药时代 (Renaissance / Gunpowder)',
+        tag: 'ERA 3 · RENAISSANCE',
+        bgColor: 0x1a1510,
+        fogColor: 0xb5a089,
+        fogDensity: 0.014,
+        groundColor: 0x4a433b, // 石板与沙石路
+        groundRough: 0.8,
+        roadColor: 0x3d362e,
+        lightColor: 0xffedd5,
+        lightIntensity: 1.65,
+        desc: '火药与重装板甲碰撞的黄金纪元。棱堡高耸、滑膛加农炮咆哮，皇家火绳枪卫队与精锐铁骑驰骋疆场。',
+        base: { file: './models/era3/base_3.glb', scale: 0.75, pos: [-20, 0, 0], rot: [0, 0, 0], name: '石砌高耸棱堡城堡' },
+        units: [
+          { file: './models/era3/knight_1.glb', scale: 1.0, pos: [-6, 0, -1], rot: [0, Math.PI / 2, 0], name: '全身板甲骑士 (Knight)' },
+          { file: './models/era3/knight_2.glb', scale: 1.0, pos: [0, 0, 0], rot: [0, Math.PI / 2, 0], name: '皇家火绳枪卫队 (Musketeer)' },
+          { file: './models/era3/knight_3.glb', scale: 1.0, pos: [6, 0, 1], rot: [0, Math.PI / 2, 0], name: '重装精锐骑士长 (Grand Paladin)' }
+        ],
+        turrets: [
+          { file: './models/era3/turret_3_1.glb', scale: 0.8, pos: [-20, 4.6, 0], name: '滑膛加农重炮塔' }
+        ],
+        special: { file: './models/era3/turrets_3.glb', scale: 0.7, pos: [14, 2, 0], rot: [0, -Math.PI / 2, 0], name: '皇家要塞巨型攻城炮' },
+        env: [
+          { file: './models/environment/rock_1.glb', scale: 1.2, pos: [-8, 0, -7] },
+          { file: './models/environment/tree_1.glb', scale: 0.7, pos: [8, 0, 8] }
+        ]
+      },
+      4: {
+        name: '现代工业战争 (Modern Warfare)',
+        tag: 'ERA 4 · MODERN ERA',
+        bgColor: 0x0f172a,
+        fogColor: 0x475569,
+        fogDensity: 0.016,
+        groundColor: 0x222a36, // 战场废土沙砾
+        groundRough: 0.9,
+        roadColor: 0x1e293b, // 龟裂柏油沥青路
+        lightColor: 0xe2e8f0,
+        lightIntensity: 1.5,
+        desc: '硝烟弥漫的现代钢铁碰撞。混凝土掩体碉堡、突击步枪与反坦克穿甲弹、战机空中呼叫地毯式轰炸压制。',
+        base: { file: './models/era4/base_4.glb', scale: 0.75, pos: [-20, 0, 0], rot: [0, 0, 0], name: '钢筋混凝土防御碉堡' },
+        units: [
+          { file: './models/era4/soldier_1.glb', scale: 1.0, pos: [-6, 0, -1], rot: [0, Math.PI / 2, 0], name: '突击步兵 (Rifleman)' },
+          { file: './models/era4/soldier_2.glb', scale: 1.0, pos: [0, 0, 0], rot: [0, Math.PI / 2, 0], name: '野战火箭筒兵 (Grenadier)' },
+          { file: './models/era4/soldier_3.glb', scale: 1.0, pos: [6, 0, 1], rot: [0, Math.PI / 2, 0], name: '防暴反坦克重装兵 (Anti-Tank)' }
+        ],
+        turrets: [
+          { file: './models/era4/turret_4_1.glb', scale: 0.8, pos: [-20, 4.4, 0], name: '双联重机枪哨塔' }
+        ],
+        special: { file: './models/era4/plane.glb', scale: 0.45, pos: [12, 6, 0], rot: [0, -Math.PI / 2, 0], name: '地毯式轰炸攻击机 (Air Strike)' },
+        env: [
+          { file: './models/environment/trunk_1.glb', scale: 1.3, pos: [-11, 0, 7] },
+          { file: './models/environment/rock_1.glb', scale: 1.1, pos: [11, 0, -8] }
+        ]
+      },
+      5: {
+        name: '未来量子科幻 (Sci-Fi / Quantum Era)',
+        tag: 'ERA 5 · QUANTUM SCI-FI',
+        bgColor: 0x050813,
+        fogColor: 0x0f172a,
+        fogDensity: 0.015,
+        groundColor: 0x0f172a, // 深黑纳米金属底盘
+        groundRough: 0.3,
+        roadColor: 0x1e1b4b, // 赛博能量导光走廊
+        lightColor: 0xa5b4fc,
+        lightIntensity: 1.8,
+        desc: '星际跃迁时代的终极对决。反重力量子要塞、能量光刃斥候、重型泰坦粒子机甲与卫星天基轨道毁灭打击。',
+        base: { file: './models/era5/base_5.glb', scale: 0.7, pos: [-20, 0, 0], rot: [0, 0, 0], name: '反重力量子星际堡垒' },
+        units: [
+          { file: './models/era5/trooper_1.glb', scale: 1.0, pos: [-6, 0, -1], rot: [0, Math.PI / 2, 0], name: '等离子突击机甲 (Trooper)' },
+          { file: './models/era5/trooper_2.glb', scale: 1.0, pos: [0, 0, 0], rot: [0, Math.PI / 2, 0], name: '光刃潜伏斥候 (Blade Stealth)' },
+          { file: './models/era5/trooper_3.glb', scale: 1.1, pos: [6, 0, 1], rot: [0, Math.PI / 2, 0], name: '泰坦粒子战斗机甲 (Titan Mech)' }
+        ],
+        turrets: [
+          { file: './models/era5/turret_5_1.glb', scale: 0.8, pos: [-20, 4.6, 0], name: '高频脉冲激光防空塔' }
+        ],
+        special: { file: './models/era5/plane.glb', scale: 0.5, pos: [12, 6, 0], rot: [0, -Math.PI / 2, 0], name: '天基卫星降维炮 (Orbital Cannon)' },
+        env: [
+          { file: './models/environment/rock_1.glb', scale: 1.2, pos: [-8, 0, 8] }
+        ]
+      }
+    };
+
+    // 引擎全局变量
+    let scene, camera, renderer, controls;
+    let currentEra = 1;
+    let currentFocus = 'all';
+    let currentAnimName = 'Walk';
+
+    const stageGroup = new THREE.Group();
+    const loadedMixers = [];
+    const entityRegistry = {}; // 保存当前各部件的引用用于聚焦
+    const gltfLoader = new GLTFLoader();
+
+    let groundMesh, roadMesh, hemiLight, dirLight;
+
+    // 初始化 Three.js 视口
+    function initEngine() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x241d17);
+      scene.fog = new THREE.FogExp2(0xd4a373, 0.014);
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 300);
+      camera.position.set(0, 10, 32);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
+      container.appendChild(renderer.domElement);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.maxPolarAngle = Math.PI / 2 - 0.03; // 防止钻入地底
+      controls.minDistance = 3;
+      controls.maxDistance = 80;
+      controls.target.set(0, 1.5, 0);
+
+      // 光照系统
+      hemiLight = new THREE.HemisphereLight(0xffeedd, 0x332211, 0.7);
+      scene.add(hemiLight);
+
+      dirLight = new THREE.DirectionalLight(0xffe0b2, 1.6);
+      dirLight.position.set(-15, 25, 20);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.camera.near = 0.5;
+      dirLight.shadow.camera.far = 70;
+      dirLight.shadow.camera.left = -30;
+      dirLight.shadow.camera.right = 30;
+      dirLight.shadow.camera.top = 20;
+      dirLight.shadow.camera.bottom = -20;
+      dirLight.shadow.bias = -0.0005;
+      scene.add(dirLight);
+
+      // 地面基础设施
+      buildEnvironmentTerrain();
+
+      scene.add(stageGroup);
+
+      window.addEventListener('resize', onWindowResize);
+      window.addEventListener('keydown', handleKeydown);
+
+      // 首次加载时代 1
+      loadEraAssets(1);
+
+      animate();
+    }
+
+    // 构建地形基础与战线中央大道
+    function buildEnvironmentTerrain() {
+      // 广袤自然地表
+      const groundGeo = new THREE.PlaneGeometry(160, 80);
+      const groundMat = new THREE.MeshStandardMaterial({
+        color: 0x8c6b43,
+        roughness: 0.95,
+        metalness: 0.05
+      });
+      groundMesh = new THREE.Mesh(groundGeo, groundMat);
+      groundMesh.rotation.x = -Math.PI / 2;
+      groundMesh.position.y = -0.02;
+      groundMesh.receiveShadow = true;
+      scene.add(groundMesh);
+
+      // 中央推线走廊道路 (宽 7 米，长 90 米)
+      const roadGeo = new THREE.PlaneGeometry(90, 7.5);
+      const roadMat = new THREE.MeshStandardMaterial({
+        color: 0x6e5233,
+        roughness: 0.85,
+        metalness: 0.1
+      });
+      roadMesh = new THREE.Mesh(roadGeo, roadMat);
+      roadMesh.rotation.x = -Math.PI / 2;
+      roadMesh.position.y = 0;
+      roadMesh.receiveShadow = true;
+      scene.add(roadMesh);
+
+      // 道路两侧道牙线
+      const curbGeo = new THREE.BoxGeometry(90, 0.12, 0.25);
+      const curbMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.9 });
+      const curbNorth = new THREE.Mesh(curbGeo, curbMat);
+      curbNorth.position.set(0, 0.05, 3.8);
+      scene.add(curbNorth);
+
+      const curbSouth = curbNorth.clone();
+      curbSouth.position.z = -3.8;
+      scene.add(curbSouth);
+
+      // 中轴交火警戒线
+      const centerStripGeo = new THREE.PlaneGeometry(0.3, 7.5);
+      const centerStripMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+      const centerStrip = new THREE.Mesh(centerStripGeo, centerStripMat);
+      centerStrip.rotation.x = -Math.PI / 2;
+      centerStrip.position.set(0, 0.02, 0);
+      scene.add(centerStrip);
+    }
+
+    // 时代切换与资产载入
+    async function loadEraAssets(eraIdx) {
+      currentEra = eraIdx;
+      const data = ERAS_DATA[eraIdx];
+
+      showLoading(`正在装载【${data.name}】3D 场景与模型...`);
+
+      // 1. 平滑切换背景与环境色调
+      scene.background.set(data.bgColor);
+      scene.fog.color.set(data.fogColor);
+      scene.fog.density = data.fogDensity;
+
+      hemiLight.color.set(data.lightColor);
+      dirLight.color.set(data.lightColor);
+      dirLight.intensity = data.lightIntensity;
+
+      groundMesh.material.color.set(data.groundColor);
+      groundMesh.material.roughness = data.groundRough;
+      roadMesh.material.color.set(data.roadColor);
+
+      // 2. 清理上一时代的 3D 对象与动画 Mixer
+      loadedMixers.length = 0;
+      while (stageGroup.children.length > 0) {
+        const obj = stageGroup.children[0];
+        stageGroup.remove(obj);
+      }
+      for (const k in entityRegistry) delete entityRegistry[k];
+
+      // 3. 异步并行加载新时代的全部模型
+      try {
+        // (1) 基地 Base
+        const baseGltf = await loadGLB(data.base.file);
+        const baseModel = baseGltf.scene;
+        baseModel.scale.setScalar(data.base.scale);
+        baseModel.position.set(...data.base.pos);
+        if (data.base.rot) baseModel.rotation.set(...data.base.rot);
+        enableShadows(baseModel);
+        stageGroup.add(baseModel);
+        entityRegistry.base = baseModel;
+
+        // (2) 兵种 Units (3个主力单位)
+        for (let i = 0; i < data.units.length; i++) {
+          const uData = data.units[i];
+          const uGltf = await loadGLB(uData.file);
+          const uModel = uGltf.scene;
+          uModel.scale.setScalar(uData.scale);
+          uModel.position.set(...uData.pos);
+          if (uData.rot) uModel.rotation.set(...uData.rot);
+          enableShadows(uModel);
+
+          // 绑定动画
+          if (uGltf.animations && uGltf.animations.length > 0) {
+            const mixer = new THREE.AnimationMixer(uModel);
+            uModel.userData.mixer = mixer;
+            uModel.userData.actions = {};
+
+            uGltf.animations.forEach(clip => {
+              const action = mixer.clipAction(clip);
+              uModel.userData.actions[clip.name] = action;
+            });
+            loadedMixers.push(mixer);
+
+            // 优先播放 Walk
+            playModelAction(uModel, currentAnimName);
+          }
+
+          stageGroup.add(uModel);
+          entityRegistry[`unit${i + 1}`] = uModel;
+        }
+
+        // (3) 防御塔 Turrets (安放在要塞顶部)
+        if (data.turrets && data.turrets.length > 0) {
+          const tData = data.turrets[0];
+          const tGltf = await loadGLB(tData.file);
+          const tModel = tGltf.scene;
+          tModel.scale.setScalar(tData.scale);
+          tModel.position.set(...tData.pos);
+          enableShadows(tModel);
+          stageGroup.add(tModel);
+          entityRegistry.turret = tModel;
+        }
+
+        // (4) 时代全屏终极大招 Special
+        if (data.special) {
+          const sGltf = await loadGLB(data.special.file);
+          const sModel = sGltf.scene;
+          sModel.scale.setScalar(data.special.scale);
+          sModel.position.set(...data.special.pos);
+          if (data.special.rot) sModel.rotation.set(...data.special.rot);
+          enableShadows(sModel);
+          stageGroup.add(sModel);
+          entityRegistry.special = sModel;
+        }
+
+        // (5) 环境景观道具 Environment Props
+        if (data.env) {
+          for (const eData of data.env) {
+            const eGltf = await loadGLB(eData.file);
+            const eModel = eGltf.scene;
+            eModel.scale.setScalar(eData.scale);
+            eModel.position.set(...eData.pos);
+            enableShadows(eModel);
+            stageGroup.add(eModel);
+          }
+        }
+
+        hideLoading();
+        updateUIInfo(eraIdx);
+        focusTarget(currentFocus);
+
+      } catch (err) {
+        console.error("加载资产失败:", err);
+        hideLoading();
+      }
+    }
+
+    // Promise 包装 GLTFLoader
+    function loadGLB(path) {
+      return new Promise((resolve, reject) => {
+        gltfLoader.load(path, resolve, undefined, reject);
+      });
+    }
+
+    // 阴影与材质设置
+    function enableShadows(obj) {
+      obj.traverse(child => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            child.material.roughness = Math.min(child.material.roughness || 0.6, 0.9);
+          }
+        }
+      });
+    }
+
+    // 播放指定骨骼动作
+    function playModelAction(model, requestedName) {
+      if (!model.userData.actions) return;
+      const actions = model.userData.actions;
+      const names = Object.keys(actions);
+      if (names.length === 0) return;
+
+      // 模糊匹配动作名字 (比如 "Walk" 匹配 "Armature|Armature|Walk" 或 "Walk")
+      let targetAction = null;
+      for (const name of names) {
+        if (name.toLowerCase().includes(requestedName.toLowerCase())) {
+          targetAction = actions[name];
+          break;
+        }
+      }
+
+      // 如果未命中，取第一个动作保底
+      if (!targetAction) targetAction = actions[names[0]];
+
+      // 平滑淡入
+      for (const name in actions) {
+        if (actions[name] !== targetAction) {
+          actions[name].fadeOut(0.25);
+        }
+      }
+      targetAction.reset().fadeIn(0.25).play();
+    }
+
+    // 全局切换动画
+    window.playAnim = function(animName) {
+      currentAnimName = animName;
+      document.querySelectorAll('.anim-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText.includes(animName));
+      });
+      [1, 2, 3].forEach(i => {
+        const u = entityRegistry[`unit${i}`];
+        if (u) playModelAction(u, animName);
+      });
+    };
+
+    // 时代切换入口
+    window.switchEra = function(eraIdx) {
+      if (eraIdx === currentEra) return;
+      document.querySelectorAll('.era-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.era) === eraIdx);
+      });
+      loadEraAssets(eraIdx);
+    };
+
+    // 视角平滑飞行 (Camera Tween)
+    let tweenTarget = null;
+    let tweenCamPos = null;
+
+    window.focusTarget = function(targetKey) {
+      currentFocus = targetKey;
+      document.querySelectorAll('.focus-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.id === `btn-focus-${targetKey}`);
+      });
+
+      const era = ERAS_DATA[currentEra];
+
+      if (targetKey === 'all') {
+        tweenTarget = new THREE.Vector3(0, 1.5, 0);
+        tweenCamPos = new THREE.Vector3(0, 10, 32);
+        updateInspectCard(era.name, '全景长廊', '宏观横版推线全景，涵盖左翼要塞、中央行军列队与右侧前沿。');
+      } else if (targetKey === 'base') {
+        const b = entityRegistry.base;
+        if (b) {
+          tweenTarget = new THREE.Vector3(b.position.x, 3.0, b.position.z);
+          tweenCamPos = new THREE.Vector3(b.position.x + 8, 6.0, b.position.z + 16);
+          updateInspectCard(era.base.name, '时代要塞大本营', `生命中枢建筑。时代进化时模型实时迭代，顶部带有防御塔安装插槽。`);
+        }
+      } else if (targetKey.startsWith('unit')) {
+        const idx = parseInt(targetKey.replace('unit', ''));
+        const u = entityRegistry[targetKey];
+        const uData = era.units[idx - 1];
+        if (u) {
+          tweenTarget = new THREE.Vector3(u.position.x, 1.0, u.position.z);
+          tweenCamPos = new THREE.Vector3(u.position.x, 2.5, u.position.z + 5.5);
+          updateInspectCard(uData.name, `${idx}号战斗兵种`, `拥有完整骨骼权重与行军/攻击动作序列，通过底部动作条可自由测试。`);
+        }
+      } else if (targetKey === 'turret') {
+        const t = entityRegistry.turret;
+        if (t) {
+          tweenTarget = new THREE.Vector3(t.position.x, t.position.y + 0.5, t.position.z);
+          tweenCamPos = new THREE.Vector3(t.position.x + 4, t.position.y + 2.5, t.position.z + 6);
+          updateInspectCard(era.turrets[0].name, '时代防御炮塔', '坐落于要塞顶部的自动防御火力，负责拦截迫近要塞的敌军前锋。');
+        }
+      } else if (targetKey === 'special') {
+        const s = entityRegistry.special;
+        if (s) {
+          tweenTarget = new THREE.Vector3(s.position.x, s.position.y, s.position.z);
+          tweenCamPos = new THREE.Vector3(s.position.x, s.position.y + 2, s.position.z + 9);
+          updateInspectCard(era.special.name, '时代毁灭终极大招', '全屏毁灭级战略打击手段，释放后伴随专属物理弹道与大范围粒子轰炸。');
+        }
+      }
+    };
+
+    function updateInspectCard(title, targetName, desc) {
+      document.getElementById('info-title').innerText = title;
+      document.getElementById('spec-target').innerText = targetName;
+      document.getElementById('info-desc').innerText = desc;
+    }
+
+    function updateUIInfo(eraIdx) {
+      const data = ERAS_DATA[eraIdx];
+      document.getElementById('era-tag').innerText = data.tag;
+      document.getElementById('label-focus-base').innerText = data.base.name;
+      document.getElementById('label-focus-unit1').innerText = data.units[0].name.split(' ')[0];
+      document.getElementById('label-focus-unit2').innerText = data.units[1].name.split(' ')[0];
+      document.getElementById('label-focus-unit3').innerText = data.units[2].name.split(' ')[0];
+      document.getElementById('label-focus-special').innerText = data.special.name.split(' ')[0];
+    }
+
+    function showLoading(text) {
+      const el = document.getElementById('loading-toast');
+      document.getElementById('loading-text').innerText = text;
+      el.style.opacity = '1';
+    }
+
+    function hideLoading() {
+      document.getElementById('loading-toast').style.opacity = '0';
+    }
+
+    function handleKeydown(e) {
+      if (['1', '2', '3', '4', '5'].includes(e.key)) {
+        switchEra(parseInt(e.key));
+      } else if (e.key === 'Escape') {
+        focusTarget('all');
+      }
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // 主渲染循环与相机缓动插值
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+
+      // 更新所有正在播放的骨骼动画
+      for (const mixer of loadedMixers) {
+        mixer.update(delta);
+      }
+
+      // 相机平滑飞行缓动
+      if (tweenTarget && tweenCamPos) {
+        controls.target.lerp(tweenTarget, 0.08);
+        camera.position.lerp(tweenCamPos, 0.08);
+
+        if (camera.position.distanceTo(tweenCamPos) < 0.05 && controls.target.distanceTo(tweenTarget) < 0.05) {
+          tweenTarget = null;
+          tweenCamPos = null;
+        }
+      }
+
+      // 时代 1 陨石或者战机轻微浮动动效
+      if (entityRegistry.special) {
+        const time = clock.getElapsedTime();
+        if (currentEra === 4 || currentEra === 5) {
+          // 战机机翼悬浮微晃
+          entityRegistry.special.position.y = 6 + Math.sin(time * 2) * 0.2;
+        } else if (currentEra === 1) {
+          // 陨石缓慢自旋
+          entityRegistry.special.rotation.y += 0.01;
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // 启动系统
+    initEngine();
+  </script>
+</body>
+</html>

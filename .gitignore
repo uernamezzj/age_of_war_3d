@@ -1,0 +1,45 @@
+# 依赖包与包管理器缓存
+node_modules/
+package-lock.json
+
+# 调试与临时开发脚本
+scratch/
+.system_generated/
+_upstream_git_bak/
+*.zip
+
+# Python 缓存与编译文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# 测试期间生成的临时对比截图
+c1_*.png
+c2_*.png
+raw_shoot_*.png
+verified_*.png
+test_*.png
+*.tmp
+
+# 编辑器与 IDE 本地配置
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# 操作系统临时文件与日志
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

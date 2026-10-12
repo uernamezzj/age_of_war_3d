@@ -1,0 +1,19 @@
+{
+  "name": "turret_1_1_idle",
+  "duration": 0.05,
+  "tracks": [
+    {
+      "name": "Band_M.quaternion",
+      "type": "quaternion",
+      "times": [
+        0.0
+      ],
+      "values": [
+        0.0,
+        0.0,
+        0.2300242593459593,
+        0.9731848951316203
+      ]
+    }
+  ]
+}

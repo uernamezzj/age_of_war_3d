@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《战争进化史 3D》高清无雾开阔推线战场全景台</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* 顶部时代战场切换 */
+    #top-nav {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 40px;
+      padding: 6px 12px;
+      display: flex;
+      gap: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    .era-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #94a3b8;
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .era-btn:hover {
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .era-btn.active {
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+    .era-btn.active[data-era="1"] { background: linear-gradient(135deg, #b45309, #d97706); border-color: #f59e0b; }
+    .era-btn.active[data-era="2"] { background: linear-gradient(135deg, #15803d, #22c55e); border-color: #4ade80; }
+    .era-btn.active[data-era="3"] { background: linear-gradient(135deg, #6d28d9, #8b5cf6); border-color: #a78bfa; }
+    .era-btn.active[data-era="4"] { background: linear-gradient(135deg, #0369a1, #0284c7); border-color: #38bdf8; }
+    .era-btn.active[data-era="5"] { background: linear-gradient(135deg, #be185d, #ec4899); border-color: #f472b6; }
+
+    /* 左上角战地情报 */
+    #hud-info {
+      position: absolute;
+      top: 16px;
+      left: 20px;
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 14px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-width: 380px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .hud-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hud-desc {
+      font-size: 12px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+    .hud-tags {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .hud-tag {
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: #38bdf8;
+    }
+
+    /* 右上角推线视角控制 */
+    #view-dock {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      z-index: 20;
+      display: flex;
+      gap: 8px;
+    }
+    .view-btn {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #cbd5e1;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .view-btn:hover { background: #334155; color: #fff; border-color: #38bdf8; }
+    .view-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+
+    /* 底部战况指示 */
+    #bottom-dock {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 30px;
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      font-size: 12px;
+    }
+    .lane-nav {
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .lane-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 4px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .lane-btn:hover { background: #0284c7; color: #fff; border-color: #38bdf8; }
+
+    /* 载入遮罩 */
+    #loading-toast {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      border-radius: 14px;
+      padding: 16px 30px;
+      font-size: 14px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      transition: opacity 0.3s;
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #38bdf8;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./node_modules/three/build/three.module.js",
+        "three/addons/": "./node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- 顶部时代战场切换 -->
+  <div id="top-nav">
+    <button class="era-btn active" data-era="1" onclick="switchBattlefield(1)">
+      <span>🌋</span> 1. 史前红石大峡谷 (风蚀巨岩与化石)
+    </button>
+    <button class="era-btn" data-era="2" onclick="switchBattlefield(2)">
+      <span>🌲</span> 2. 欧洲原野森林溪谷 (经典开阔原野)
+    </button>
+    <button class="era-btn" data-era="3" onclick="switchBattlefield(3)">
+      <span>🏰</span> 3. 皇家城墙要塞外围 (石砌城垛与箭楼)
+    </button>
+    <button class="era-btn" data-era="4" onclick="switchBattlefield(4)">
+      <span>🪖</span> 4. 现代战壕与前线焦土 (铁丝网与碉堡)
+    </button>
+    <button class="era-btn" data-era="5" onclick="switchBattlefield(5)">
+      <span>🚀</span> 5. 异星轨道悬浮战桥 (深空星环与母舰)
+    </button>
+  </div>
+
+  <!-- 左上角说明 -->
+  <div id="hud-info">
+    <div class="hud-title" id="hud-title">🌋 时代 1 · 史前红石大峡谷战场</div>
+    <div class="hud-desc" id="hud-desc">
+      已彻底清空雾气，初始视角优化为全景高清大机位：左侧我方大本营、中央中线交锋与右侧敌军要塞一览无余，后方大场景壮丽清晰！
+    </div>
+    <div class="hud-tags">
+      <span class="hud-tag">雾气已清零 (100% 通透)</span>
+      <span class="hud-tag">全局清晰大广角</span>
+      <span class="hud-tag">两军基地全貌尽收</span>
+    </div>
+  </div>
+
+  <!-- 视角切换与背景源切换 -->
+  <div id="view-dock">
+    <button class="view-btn active" id="btn-view-battle" onclick="setCameraView('battle')">🎮 全景推线对决视角 (推荐)</button>
+    <button class="view-btn" id="btn-view-orbit" onclick="setCameraView('orbit')">🌐 360° 上帝航拍</button>
+    <button class="view-btn" id="btn-view-close" onclick="setCameraView('close')">⚔️ 士兵行军特写</button>
+    <button class="view-btn" id="btn-bg-mode" style="border-color:#38bdf8; color:#38bdf8;" onclick="toggleCustomBgMode()">🏆 切换为自选大场景 (净空版)</button>
+  </div>
+
+  <!-- 底部快速跳转 -->
+  <div id="bottom-dock">
+    <div class="lane-nav">
+      <span>镜头快速定位：</span>
+      <button class="lane-btn" onclick="panTo(-26, 30)">🏰 我方基地 (Left)</button>
+      <button class="lane-btn" onclick="panTo(-7, 36)">⚔️ 交火全景 (Center)</button>
+      <button class="lane-btn" onclick="panTo(12, 30)">🏰 敌军要塞 (Right)</button>
+    </div>
+    <div style="color:#64748b;">|</div>
+    <div style="color:#94a3b8;">
+      💡 <b>操控</b>：鼠标左键拖拽旋转视角，右键平移长廊，滚轮自由缩放
+    </div>
+  </div>
+
+  <!-- 载入提示 -->
+  <div id="loading-toast" style="display:none;">
+    <div class="spinner"></div>
+    <span id="loading-text">正在装配战场大场景...</span>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    let scene, camera, renderer, controls;
+    let currentEra = 1;
+
+    const gltfLoader = new GLTFLoader();
+    const backgroundGroup = new THREE.Group();
+    const battlefieldLaneGroup = new THREE.Group();
+    const activeMixers = [];
+
+    // 5 大时代推线战场深度定制配置 (彻底遵循战争进化史规则，全量高清无雾)
+    const BATTLEFIELDS_DATA = {
+      1: {
+        name: '🌋 史前红石大峡谷 (Prehistoric Canyon Rift)',
+        desc: '开阔的原始荒漠推线战线：后方背景是延绵耸立的红石风蚀绝壁山脉群与恐龙骨架化石拱门，两侧是要塞石洞，中央行军主道平坦无阻，全景通透清晰！',
+        skyColor: 0xd97706, // 鲜明荒漠暖阳天光
+        groundColor: 0x92400e, // 粗糙红土沙石
+        groundRough: 0.9,
+        roadColor: 0x78350f,
+        lightColor: 0xffedd5,
+        lightIntensity: 2.2,
+        base: './models/era1/base_1.glb',
+        soldier: './models/era1/caveman_1.glb',
+        soldierScale: 1.0,
+        buildBackground: buildEra1Background,
+        buildCustomBackground: buildEra1CustomBackground
+      },
+      2: {
+        name: '🌲 欧洲原野森林溪谷 (Forest River Valley)',
+        desc: '经典中世纪推线林区：后方背景是一览无余的参天针叶松林与阔叶山峦，碧绿草甸与泥土马车战道，石砌前哨城堡与剑士列队整装待发。',
+        skyColor: 0x38bdf8, // 清澈通透蔚蓝晴空
+        groundColor: 0x15803d, // 湿润绿草地
+        groundRough: 0.8,
+        roadColor: 0x451a03,
+        lightColor: 0xf0fdf4,
+        lightIntensity: 2.2,
+        base: './models/era2/base_2.glb',
+        soldier: './models/era2/swordman_1.glb',
+        soldierScale: 1.0,
+        buildBackground: buildEra2Background,
+        buildCustomBackground: buildEra2CustomBackground
+      },
+      3: {
+        name: '🏰 皇家城墙要塞外围 (Castle Siege Grounds)',
+        desc: '文艺复兴要塞城下大平原：后方背景沿整条 80 米战线耸立着完整的石头城墙、卫城方塔、铁栅城门与金色皇家战旗！宽阔青石板大道上重甲骑士正在冲锋。',
+        skyColor: 0x94a3b8, // 晴朗古典天光
+        groundColor: 0x334155, // 平原碎石灰地
+        groundRough: 0.75,
+        roadColor: 0x1e293b, // 青石板路
+        lightColor: 0xffedd5,
+        lightIntensity: 2.2,
+        base: './models/era3/base_3.glb',
+        soldier: './models/era3/knight_1.glb',
+        soldierScale: 1.0,
+        buildBackground: buildEra3Background,
+        buildCustomBackground: buildEra3CustomBackground
+      },
+      4: {
+        name: '🪖 现代战壕与前线焦土 (Frontline War Trenches)',
+        desc: '二战野外开阔战线：背景清晰分布着防空混凝土碉堡防线群、沙袋工事与战火焦木，高空轰炸机低空掠过，前沿步兵持枪推进！',
+        skyColor: 0x475569, // 现代阴云天光
+        groundColor: 0x1e293b, // 战备焦土
+        groundRough: 0.85,
+        roadColor: 0x0f172a, // 黑色柏油路
+        lightColor: 0xf1f5f9,
+        lightIntensity: 2.2,
+        base: './models/era4/base_4.glb',
+        soldier: './models/era4/soldier_1.glb',
+        soldierScale: 1.0,
+        buildBackground: buildEra4Background,
+        buildCustomBackground: buildEra4CustomBackground
+      },
+      5: {
+        name: '🚀 异星轨道悬浮战桥 (Orbital Star Platform)',
+        desc: '浩瀚深空中的星际推线要塞：脚下是宽阔的半透明量子能量悬浮战桥，后方背景是一整片清澈璀璨的深空星云、带环巨行星与悬浮星际护卫舰！',
+        skyColor: 0x020617, // 深邃宇宙黑
+        groundColor: 0x0f172a, // 暗黑纳米甲板
+        groundRough: 0.2,
+        roadColor: 0x1e1b4b, // 发光能量桥面
+        lightColor: 0xc7d2fe,
+        lightIntensity: 2.4,
+        base: './models/era5/base_5.glb',
+        soldier: './models/era5/trooper_1.glb',
+        soldierScale: 1.1,
+        buildBackground: buildEra5Background,
+        buildCustomBackground: buildEra5CustomBackground
+      }
+    };
+
+    let hemiLight, sunLight;
+    let groundMesh, roadMesh;
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      // 彻底清空雾气，绝不使用任何 Fog
+      scene.fog = null;
+
+      // 优化初始大广角视角：拉远至 Z: 36, Y: 13, Target X: -7, Y: 2
+      // 使得左侧 X: -26 的我方基地、中间 X: -7 的士兵、右侧 X: 12 的敌军基地全部清晰尽收眼底！
+      camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
+      camera.position.set(-7, 13, 36);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.3; // 提升通透曝光度
+      renderer.localClippingEnabled = true; // 启用硬件局部物理剖切
+      container.appendChild(renderer.domElement);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.target.set(-7, 2.0, 0);
+      controls.maxPolarAngle = Math.PI / 2 - 0.01;
+      controls.minDistance = 5;
+      controls.maxDistance = 120;
+
+      // 强力通透环境光系统
+      hemiLight = new THREE.HemisphereLight(0xffffff, 0x555555, 1.3);
+      scene.add(hemiLight);
+
+      sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
+      sunLight.position.set(-20, 40, 30);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 2048;
+      sunLight.shadow.mapSize.height = 2048;
+      sunLight.shadow.camera.near = 0.5;
+      sunLight.shadow.camera.far = 140;
+      sunLight.shadow.camera.left = -60;
+      sunLight.shadow.camera.right = 60;
+      sunLight.shadow.camera.top = 40;
+      sunLight.shadow.camera.bottom = -40;
+      sunLight.shadow.bias = -0.0004;
+      scene.add(sunLight);
+
+      // 构建开阔平坦战道底座
+      buildLaneInfrastructure();
+
+      scene.add(backgroundGroup);
+      scene.add(battlefieldLaneGroup);
+
+      window.addEventListener('resize', onResize);
+
+      // 读取 URL 路由参数
+      const urlParams = new URLSearchParams(window.location.search);
+      const initialEra = parseInt(urlParams.get('era') || '1', 10);
+      if (urlParams.get('bg') === 'custom') {
+        useCustomScenes = true;
+        const btn = document.getElementById('btn-bg-mode');
+        if (btn) {
+          btn.innerText = '🏕️ 切换为原生组合背景';
+          btn.style.color = '#4ade80';
+          btn.style.borderColor = '#4ade80';
+        }
+      }
+      switchBattlefield(initialEra);
+
+      animate();
+    }
+
+    // 核心行军平坦战道 (永远保持开阔，绝无立柱挡道)
+    function buildLaneInfrastructure() {
+      // 广袤开阔地表 (长 160 米，宽 70 米)
+      const groundGeo = new THREE.PlaneGeometry(160, 70);
+      const groundMat = new THREE.MeshStandardMaterial({
+        color: 0x92400e,
+        roughness: 0.9,
+        metalness: 0.05
+      });
+      groundMesh = new THREE.Mesh(groundGeo, groundMat);
+      groundMesh.rotation.x = -Math.PI / 2;
+      groundMesh.position.set(0, -0.02, 0);
+      groundMesh.receiveShadow = true;
+      scene.add(groundMesh);
+
+      // 中央主行军道 (长 100 米，宽 7.5 米)
+      const roadGeo = new THREE.PlaneGeometry(100, 7.5);
+      const roadMat = new THREE.MeshStandardMaterial({
+        color: 0x78350f,
+        roughness: 0.8,
+        metalness: 0.1
+      });
+      roadMesh = new THREE.Mesh(roadGeo, roadMat);
+      roadMesh.rotation.x = -Math.PI / 2;
+      roadMesh.position.set(0, 0, 0);
+      roadMesh.receiveShadow = true;
+      scene.add(roadMesh);
+
+      // 两侧安全路牙石
+      const curbGeo = new THREE.BoxGeometry(100, 0.16, 0.35);
+      const curbMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.85 });
+      const curbNorth = new THREE.Mesh(curbGeo, curbMat);
+      curbNorth.position.set(0, 0.08, 3.8);
+      scene.add(curbNorth);
+
+      const curbSouth = curbNorth.clone();
+      curbSouth.position.z = -3.8;
+      scene.add(curbSouth);
+
+      // 交火中线鲜明红线 (X = -7 米偏中位置)
+      const centerLineGeo = new THREE.PlaneGeometry(0.4, 7.5);
+      const centerLineMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+      const centerLine = new THREE.Mesh(centerLineGeo, centerLineMat);
+      centerLine.rotation.x = -Math.PI / 2;
+      centerLine.position.set(-7, 0.02, 0);
+      scene.add(centerLine);
+    }
+
+    // 时代战场切换入口
+    window.switchBattlefield = async function(eraIdx) {
+      currentEra = eraIdx;
+      const data = BATTLEFIELDS_DATA[eraIdx];
+
+      document.querySelectorAll('.era-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.era) === eraIdx);
+      });
+
+      document.getElementById('hud-title').innerText = data.name;
+      document.getElementById('hud-desc').innerText = data.desc;
+
+      showLoading(`正在呈现【${data.name}】全景高清大场景...`);
+
+      // 调整天空环境色 (彻底清零雾气)
+      scene.background = new THREE.Color(data.skyColor);
+      scene.fog = null; // 确保 100% 零雾气
+
+      sunLight.color.set(data.lightColor);
+      sunLight.intensity = data.lightIntensity;
+      hemiLight.color.set(data.lightColor);
+
+      // 更新地表颜色
+      groundMesh.material.color.set(data.groundColor);
+      groundMesh.material.roughness = data.groundRough;
+      roadMesh.material.color.set(data.roadColor);
+
+      // 清空旧背景与旧战线兵线
+      activeMixers.length = 0;
+      while (backgroundGroup.children.length > 0) backgroundGroup.remove(backgroundGroup.children[0]);
+      while (battlefieldLaneGroup.children.length > 0) battlefieldLaneGroup.remove(battlefieldLaneGroup.children[0]);
+
+      try {
+        // 1. 构建该时代专有的背景大世界 (支持原生与自选净空大场景)
+        if (useCustomScenes && data.buildCustomBackground) {
+          await data.buildCustomBackground(backgroundGroup);
+        } else {
+          await data.buildBackground(backgroundGroup);
+        }
+
+        // 2. 放置两军文明基地与行军士兵
+        await mountArmiesOnLane(data);
+
+        hideLoading();
+      } catch (err) {
+        console.error("装配战场失败:", err);
+        hideLoading();
+      }
+    };
+
+    let useCustomScenes = false;
+    window.toggleCustomBgMode = function() {
+      useCustomScenes = !useCustomScenes;
+      const btn = document.getElementById('btn-bg-mode');
+      btn.innerText = useCustomScenes ? '🏕️ 切换为原生组合背景' : '🏆 切换为自选大场景 (净空版)';
+      btn.style.color = useCustomScenes ? '#4ade80' : '#38bdf8';
+      btn.style.borderColor = useCustomScenes ? '#4ade80' : '#38bdf8';
+      switchBattlefield(currentEra);
+    };
+
+    function applyClipping(object, clipZ) {
+      if (clipZ === undefined || clipZ === null) return;
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, -1), clipZ);
+      object.traverse(child => {
+        if (child.isMesh && child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => { m.clippingPlanes = [plane]; m.clipShadows = true; m.needsUpdate = true; });
+          } else {
+            child.material.clippingPlanes = [plane];
+            child.material.clipShadows = true;
+            child.material.needsUpdate = true;
+          }
+        }
+      });
+    }
+
+    // --- 用户自选净空版大场景背景装配 (应用用户定制参数) ---
+    async function buildEra1CustomBackground(group) {
+      await buildEra1Background(group);
+    }
+    async function buildEra2CustomBackground(group) {
+      const gltf = await loadGLB('./models/custom_scenes/forest_night_road_cleared.glb');
+      const root = gltf.scene;
+      root.scale.setScalar(2.37);
+      root.position.set(-32.0, -5.1, 30.0);
+      root.rotation.y = 0.0;
+      applyClipping(root, 3.5);
+      enableShadows(root);
+      group.add(root);
+    }
+    async function buildEra3CustomBackground(group) {
+      const gltf = await loadGLB('./models/custom_scenes/city_hannover_cleared.glb');
+      const root = gltf.scene;
+      root.scale.setScalar(1.16);
+      root.position.set(0.5, -0.1, 6.5);
+      root.rotation.y = 0.0;
+      applyClipping(root, -5.5);
+      enableShadows(root);
+      group.add(root);
+    }
+    async function buildEra4CustomBackground(group) {
+      const gltf = await loadGLB('./models/custom_scenes/modern_war_cleared.glb');
+      const root = gltf.scene;
+      root.scale.setScalar(0.65);
+      root.position.set(0.5, -1.9, 0.0);
+      root.rotation.y = 0.0;
+      applyClipping(root, -4.5);
+      enableShadows(root);
+      group.add(root);
+    }
+    async function buildEra5CustomBackground(group) {
+      const gltf = await loadGLB('./models/custom_scenes/space_nebula_cleared.glb');
+      const root = gltf.scene;
+      root.scale.setScalar(14.20);
+      root.position.set(-27.0, -19.2, 0.0);
+      root.rotation.y = 0.0;
+      applyClipping(root, 5.0);
+      group.add(root);
+    }
+
+    // --- 1. 时代 1：史前红石大峡谷背景 ---
+    async function buildEra1Background(group) {
+      const mountainGltf = await loadGLB('./models/era1/canyon_mountains.glb');
+      const mountainProto = mountainGltf.scene;
+      enableShadows(mountainProto);
+
+      // 沿 Z 轴后方 (Z: 14 ~ 22) 横向铺满 6 座雄伟峡谷绝壁
+      [-48, -28, -10, 8, 28, 48].forEach((xPos, idx) => {
+        const m = mountainProto.clone(true);
+        const s = 3.6 + (idx % 2) * 0.5;
+        m.scale.setScalar(s);
+        m.position.set(xPos, -0.2, 16 + (idx % 2) * 4);
+        m.rotation.y = (idx * 0.8);
+        group.add(m);
+      });
+
+      // 恐龙巨大化石拱门 (座落在背景中段 X: -7, Z: 9)
+      const archGltf = await loadGLB('./models/era1/fossil_arch.glb');
+      const arch = archGltf.scene;
+      arch.scale.setScalar(2.8);
+      arch.position.set(-7, 0, 9.5);
+      arch.rotation.y = -Math.PI / 4;
+      enableShadows(arch);
+      group.add(arch);
+
+      // 原始部落祭祀图腾 (X: 5, Z: 8)
+      const totemGltf = await loadGLB('./models/era1/tribal_totem.glb');
+      const totem = totemGltf.scene;
+      totem.scale.setScalar(2.0);
+      totem.position.set(5, 0, 8);
+      enableShadows(totem);
+      group.add(totem);
+
+      // 散落风蚀巨石
+      const rockGltf = await loadGLB('./models/environment/rock_1.glb');
+      [-36, -20, 0, 18, 34].forEach((xPos, idx) => {
+        const r = rockGltf.scene.clone(true);
+        r.scale.setScalar(1.5 + (idx % 2) * 0.4);
+        r.position.set(xPos, 0, 7.5 + (idx % 2) * 2);
+        group.add(r);
+      });
+    }
+
+    // --- 2. 时代 2：中世纪森林溪谷背景 ---
+    async function buildEra2Background(group) {
+      const pineGltf = await loadGLB('./models/environment/pine_1.glb');
+      const treeGltf = await loadGLB('./models/environment/tree_1.glb');
+      const bushGltf = await loadGLB('./models/environment/bush_1.glb');
+
+      // 后方延绵茂密的森林线 (Z: 10 ~ 20)
+      for (let x = -50; x <= 50; x += 5.5) {
+        const isPine = (Math.abs(x) % 11 < 5);
+        const tree = (isPine ? pineGltf.scene : treeGltf.scene).clone(true);
+        tree.scale.setScalar(isPine ? 0.85 : 1.0);
+        tree.position.set(x + (Math.sin(x) * 2), 0, 11 + (Math.cos(x) * 4));
+        tree.rotation.y = x;
+        enableShadows(tree);
+        group.add(tree);
+
+        // 伴生灌木
+        const bush = bushGltf.scene.clone(true);
+        bush.scale.setScalar(1.0);
+        bush.position.set(x + 1.5, 0, 7 + (Math.sin(x) * 1.5));
+        group.add(bush);
+      }
+    }
+
+    // --- 3. 时代 3：皇家城墙要塞外围背景 ---
+    async function buildEra3Background(group) {
+      const wallGltf = await loadGLB('./assets/models/kenney_castle/wall.glb');
+      const towerGltf = await loadGLB('./assets/models/kenney_castle/tower-square.glb');
+      const gateGltf = await loadGLB('./assets/models/kenney_castle/gate.glb');
+      const flagGltf = await loadGLB('./assets/models/kenney_castle/flag.glb');
+
+      enableShadows(wallGltf.scene);
+      enableShadows(towerGltf.scene);
+      enableShadows(gateGltf.scene);
+
+      // 城墙横贯整条战线 (从 X: -48 到 +48)
+      for (let x = -48; x <= 48; x += 6.0) {
+        if (Math.abs(x + 7) < 3.5) {
+          // 中央正对中线位置设立雄伟城门
+          const gate = gateGltf.scene.clone(true);
+          gate.scale.setScalar(2.6);
+          gate.position.set(x, 0, 10.5);
+          group.add(gate);
+        } else if (Math.abs(x) % 18 < 5) {
+          // 定期设置角楼要塞箭塔
+          const tower = towerGltf.scene.clone(true);
+          tower.scale.setScalar(2.8);
+          tower.position.set(x, 0, 10.5);
+          group.add(tower);
+
+          // 箭塔顶立旌旗
+          const flag = flagGltf.scene.clone(true);
+          flag.scale.setScalar(1.8);
+          flag.position.set(x, 7.5, 10.5);
+          group.add(flag);
+        } else {
+          // 连接用高耸石墙
+          const wall = wallGltf.scene.clone(true);
+          wall.scale.setScalar(2.6);
+          wall.position.set(x, 0, 10.5);
+          group.add(wall);
+        }
+      }
+    }
+
+    // --- 4. 时代 4：现代野外战壕焦土背景 ---
+    async function buildEra4Background(group) {
+      const trunkGltf = await loadGLB('./models/environment/trunk_1.glb');
+      const bunkerGltf = await loadGLB('./models/era4/base_4.glb');
+
+      // 后方分布坚固水泥碉堡掩体 (X: -32, X: -7, X: +18, Z: 14)
+      [-32, -7, 18].forEach(x => {
+        const b = bunkerGltf.scene.clone(true);
+        b.scale.setScalar(0.55);
+        b.position.set(x, 0, 14.5);
+        enableShadows(b);
+        group.add(b);
+      });
+
+      // 沿线分布倒木焦痕
+      for (let x = -44; x <= 44; x += 7) {
+        const trunk = trunkGltf.scene.clone(true);
+        trunk.scale.setScalar(1.3);
+        trunk.position.set(x, 0, 8.5 + (Math.sin(x) * 2));
+        trunk.rotation.y = x;
+        group.add(trunk);
+      }
+
+      // 轰炸机低空掠过 (Y: 14, 靠近视野顶部清晰可见)
+      const planeGltf = await loadGLB('./models/era4/plane.glb');
+      const plane = planeGltf.scene;
+      plane.scale.setScalar(0.65);
+      plane.position.set(-7, 14, 6);
+      plane.rotation.y = -Math.PI / 2;
+      group.add(plane);
+    }
+
+    // --- 5. 时代 5：异星轨道悬浮战桥背景 ---
+    async function buildEra5Background(group) {
+      // 1. 浩瀚宇宙巨行星 (带发光光环的大土星，置于清晰背景 Y: 22, Z: -35)
+      const planetGeo = new THREE.SphereGeometry(22, 32, 32);
+      const planetMat = new THREE.MeshStandardMaterial({
+        color: 0x3b82f6,
+        roughness: 0.4,
+        metalness: 0.3
+      });
+      const planet = new THREE.Mesh(planetGeo, planetMat);
+      planet.position.set(12, 22, -35);
+      group.add(planet);
+
+      // 巨大的明亮光环
+      const ringGeo = new THREE.RingGeometry(28, 42, 64);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0xbae6fd,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.8
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI / 2.3;
+      ring.position.copy(planet.position);
+      group.add(ring);
+
+      // 2. 漫天清晰星尘点阵 (500 颗璀璨繁星)
+      const starsGeo = new THREE.BufferGeometry();
+      const starPos = [];
+      for (let i = 0; i < 500; i++) {
+        starPos.push(
+          (Math.random() - 0.5) * 260,
+          Math.random() * 90 - 10,
+          -25 - Math.random() * 80
+        );
+      }
+      starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+      const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.2 });
+      const stars = new THREE.Points(starsGeo, starsMat);
+      group.add(stars);
+
+      // 3. 悬浮星际护卫舰
+      const shipGltf = await loadGLB('./models/era5/plane.glb');
+      const ship = shipGltf.scene;
+      ship.scale.setScalar(0.9);
+      ship.position.set(-24, 18, -15);
+      ship.rotation.y = Math.PI / 4;
+      group.add(ship);
+    }
+
+    // --- 在开阔战道上装配双方文明基地与冲锋士兵 ---
+    async function mountArmiesOnLane(data) {
+      // 1. 我方基地 (稳稳立在最左端 X: -26)
+      const allyGltf = await loadGLB(data.base);
+      const allyBase = allyGltf.scene;
+      allyBase.scale.setScalar(0.75);
+      allyBase.position.set(-26, 0, 0);
+      enableShadows(allyBase);
+      battlefieldLaneGroup.add(allyBase);
+
+      // 2. 敌方要塞 (稳稳立在最右端 X: 12，镜像面对我方)
+      const enemyGltf = await loadGLB(data.base);
+      const enemyBase = enemyGltf.scene;
+      enemyBase.scale.setScalar(0.75);
+      enemyBase.rotation.y = Math.PI;
+      enemyBase.position.set(12, 0, 0);
+      enableShadows(enemyBase);
+      battlefieldLaneGroup.add(enemyBase);
+
+      // 3. 正在战道中央行军的主力士兵 (行军动作迈步)
+      const soldierGltf = await loadGLB(data.soldier);
+      const soldier = soldierGltf.scene;
+      soldier.scale.setScalar(data.soldierScale);
+      soldier.position.set(-7, 0, 0);
+      soldier.rotation.y = Math.PI / 2;
+      enableShadows(soldier);
+
+      if (soldierGltf.animations && soldierGltf.animations.length > 0) {
+        const mixer = new THREE.AnimationMixer(soldier);
+        const clip = soldierGltf.animations.find(c => c.name.toLowerCase().includes('walk')) || soldierGltf.animations[0];
+        mixer.clipAction(clip).play();
+        activeMixers.push(mixer);
+      }
+      battlefieldLaneGroup.add(soldier);
+    }
+
+    function loadGLB(url) {
+      return new Promise((resolve, reject) => {
+        gltfLoader.load(url, resolve, undefined, reject);
+      });
+    }
+
+    function enableShadows(obj) {
+      obj.traverse(c => {
+        if (c.isMesh) {
+          c.castShadow = true;
+          c.receiveShadow = true;
+        }
+      });
+    }
+
+    // 机位模式切换
+    window.setCameraView = function(viewType) {
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`btn-view-${viewType}`).classList.add('active');
+
+      if (viewType === 'battle') {
+        // 经典全景推线：俯视微倾，两军尽收眼底
+        camera.position.set(-7, 13, 36);
+        controls.target.set(-7, 2.0, 0);
+      } else if (viewType === 'orbit') {
+        // 自由上帝航拍视角
+        camera.position.set(-7, 26, 42);
+        controls.target.set(-7, 0, 0);
+      } else if (viewType === 'close') {
+        // 士兵近距离特写
+        camera.position.set(-7, 2.5, 7.5);
+        controls.target.set(-7, 1.2, 0);
+      }
+    };
+
+    // 沿战线横向滑轨平移镜头
+    window.panTo = function(xPos, zDist = 36) {
+      controls.target.x = xPos;
+      controls.target.y = 2.0;
+      camera.position.x = xPos;
+      camera.position.y = 13;
+      camera.position.z = zDist;
+    };
+
+    function showLoading(text) {
+      const el = document.getElementById('loading-toast');
+      document.getElementById('loading-text').innerText = text;
+      el.style.display = 'flex';
+    }
+
+    function hideLoading() {
+      const el = document.getElementById('loading-toast');
+      el.style.display = 'none';
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+
+      for (const m of activeMixers) m.update(delta);
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    init();
+  </script>
+</body>
+</html>

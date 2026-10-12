@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《战争进化史 2》本地零依赖原版运行器</title>
+  <!-- 本地离线引擎，完全不依赖任何外网 CDN -->
+  <script>
+    window.RufflePlayer = window.RufflePlayer || {};
+    window.RufflePlayer.config = {
+      autoplay: "on",
+      unmuteOverlay: "hidden",
+      letterbox: "on"
+    };
+  </script>
+  <script src="./node_modules/@ruffle-rs/ruffle/ruffle.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 22px;
+      color: #58a6ff;
+      margin-bottom: 6px;
+    }
+    p {
+      color: #8b949e;
+      font-size: 13px;
+    }
+    #game-container {
+      width: 720px;
+      height: 480px;
+      background: #000;
+      border: 2px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      position: relative;
+    }
+    .btn-row {
+      margin-top: 15px;
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      padding: 8px 16px;
+      background: #238636;
+      border: 1px solid rgba(240,246,252,0.1);
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #2ea043; }
+    .btn-secondary { background: #21262d; border-color: #30363d; }
+    .btn-secondary:hover { background: #30363d; }
+    .tips {
+      margin-top: 15px;
+      max-width: 720px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px 18px;
+      font-size: 13px;
+      color: #c9d1d9;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎮 《战争进化史 2》原版原汁原味运行器</h1>
+    <p>100% 本地离线 WebAssembly 运行，无需 Flash 插件，点击画面即可操作！</p>
+  </header>
+
+  <div id="game-container"></div>
+
+  <div class="btn-row">
+    <button class="btn" onclick="reloadGame()">🔄 重新载入</button>
+    <button class="btn btn-secondary" onclick="toggleFullscreen()">⛶ 全屏运行</button>
+    <a class="btn btn-secondary" href="./aow2_gallery.html">🖼️ 查看已提取的 114 张原画与图标</a>
+  </div>
+
+  <div class="tips">
+    💡 <strong>查阅指南</strong>：
+    <br>• <strong>看小兵造型</strong>：点击游戏画面的右下角 <strong>「View the game guide」</strong>，内置了全套兵种图鉴与机甲说明！
+    <br>• <strong>看实战挥砍</strong>：点击左下角 <strong>「Play the first game」</strong> 选择战役进入，即可现场观察原始人挥棒、恐龙狂奔、投石索攻击的完整动作。
+  </div>
+
+  <script>
+    let player = null;
+    function loadGame() {
+      const container = document.getElementById('game-container');
+      container.innerHTML = '';
+      const ruffle = window.RufflePlayer.newest();
+      player = ruffle.createPlayer();
+      player.style.width = '100%';
+      player.style.height = '100%';
+      container.appendChild(player);
+      player.load('/assets/aow2/aow2.swf');
+    }
+
+    function reloadGame() {
+      loadGame();
+    }
+
+    function toggleFullscreen() {
+      if (!player) return;
+      if (player.requestFullscreen) {
+        player.requestFullscreen();
+      }
+    }
+
+    window.addEventListener('load', () => {
+      loadGame();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《战争进化史 3D》全时代兵种行进巡航与往回走演示</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    /* Top HUD */
+    .top-hud {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      padding: 16px 22px;
+      border-radius: 14px;
+      box-shadow: 0 10px 36px rgba(0,0,0,0.6);
+      max-width: 460px;
+    }
+    .top-hud h1 {
+      font-size: 17px;
+      font-weight: 800;
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 5px;
+    }
+    .stat-val {
+      color: #f8fafc;
+      font-weight: bold;
+      font-family: monospace;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: bold;
+      background: #0284c7;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(2, 132, 199, 0.5);
+    }
+    
+    /* Control Dock at Bottom */
+    .control-dock {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 12px 20px;
+      border-radius: 16px;
+      box-shadow: 0 14px 44px rgba(0,0,0,0.65);
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 96vw;
+    }
+    .btn {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f1f5f9;
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn:hover {
+      background: #334155;
+      transform: translateY(-2px);
+      border-color: #38bdf8;
+    }
+    .btn.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
+    }
+    .btn-special {
+      background: linear-gradient(135deg, #b45309, #d97706);
+      border-color: #f59e0b;
+      color: #fff;
+    }
+    .btn-special:hover {
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.5);
+    }
+    .btn-special.active {
+      background: linear-gradient(135deg, #f59e0b, #fbbf24);
+      color: #000;
+      border-color: #fef08a;
+      box-shadow: 0 0 18px rgba(245, 158, 11, 0.6);
+    }
+    .btn-fire {
+      background: #b91c1c;
+      border-color: #ef4444;
+    }
+    .btn-fire:hover {
+      background: #dc2626;
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.5);
+    }
+    .btn-death {
+      background: #475569;
+      border-color: #64748b;
+    }
+    
+    /* Right View Mode & Unit Selector */
+    .view-dock {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 14px 16px;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      width: 280px;
+    }
+    .view-dock::-webkit-scrollbar {
+      width: 6px;
+    }
+    .view-dock::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    .view-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #f59e0b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 8px;
+      margin-bottom: 2px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .view-btn {
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #cbd5e1;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .view-btn:hover {
+      background: #334155;
+      color: #fff;
+      border-color: #38bdf8;
+    }
+    .view-btn.active {
+      background: #0284c7;
+      color: #fff;
+      border-color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+    .view-btn-dim {
+      opacity: 0.7;
+      background: #0f172a;
+    }
+    
+    /* Key Hints */
+    .keys-hint {
+      position: absolute;
+      bottom: 88px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      font-size: 12px;
+      color: #94a3b8;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(8px);
+      padding: 5px 20px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .key-badge {
+      background: #334155;
+      color: #f8fafc;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-weight: bold;
+    }
+    
+    /* Loading overlay */
+    #loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #090d16;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.4s ease;
+    }
+    .spinner {
+      width: 52px;
+      height: 52px;
+      border: 4px solid #1e293b;
+      border-top-color: #f59e0b;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+  <!-- Three.js + GLTFLoader + OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div id="loading-title" style="font-size: 18px; font-weight: bold; color: #fbbf24;">正在加载 3D 资产与战场场景...</div>
+    <div id="loading-desc" style="font-size: 13px; color: #94a3b8; margin-top: 6px;">正在烘焙全时代骨骼模型与动力学动画</div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <!-- Top Info HUD -->
+  <div class="top-hud">
+    <h1>⚔️ 《战争进化史 3D》全时代兵种演示</h1>
+    <div class="stat-row">
+      <span>当前兵种</span>
+      <span class="stat-val" id="model-name-val">第二时代·剑盾轻步兵</span>
+    </div>
+    <div class="stat-row">
+      <span>所属时代</span>
+      <span class="stat-val" id="era-val" style="color: #fbbf24;">第二时代·中世纪</span>
+    </div>
+    <div class="stat-row">
+      <span>机动动作状态</span>
+      <span class="status-badge" id="status-val">待机警戒 (IDLE)</span>
+    </div>
+    <div class="stat-row">
+      <span>行进位移 (战道坐标)</span>
+      <span class="stat-val" id="dist-val">0.00 米</span>
+    </div>
+    <div class="stat-row">
+      <span>行进移速</span>
+      <span class="stat-val" id="speed-val">0.00 米/秒</span>
+    </div>
+    <div class="stat-row">
+      <span>往回走步态模式</span>
+      <span class="stat-val" id="walkback-mode-val" style="color: #38bdf8;">调头走回基地 (Turn)</span>
+    </div>
+  </div>
+
+  <!-- Camera View & Unit Switcher -->
+  <div class="view-dock">
+    <div class="view-title" style="margin-top: 0;">🎥 摄像机视角模式</div>
+    <button class="view-btn active" id="btn-view-side" onclick="setCameraMode('side')">🎥 经典横版视角 (Side)</button>
+    <button class="view-btn" id="btn-view-chase" onclick="setCameraMode('chase')">📹 第三人称越肩 (Chase)</button>
+    <button class="view-btn" id="btn-view-orbit" onclick="setCameraMode('orbit')">🌐 360° 自由轨道 (Orbit)</button>
+    
+    <div class="view-title">⚔️ 第二时代·中世纪 (Era 2)</div>
+    <button class="view-btn active" id="btn-model-swordman1" onclick="switchModel('swordman1')">🛡️ 剑盾轻步兵 (swordman_1)</button>
+    <button class="view-btn" id="btn-model-swordman2" onclick="switchModel('swordman2')">🏹 战弓手 (swordman_2)</button>
+    <button class="view-btn" id="btn-model-swordman3" onclick="switchModel('swordman3')">🐎 双马战车骑兵 (swordman_3)</button>
+
+    <div class="view-title">🏰 第三时代·文艺复兴 (Era 3)</div>
+    <button class="view-btn" id="btn-model-knight1" onclick="switchModel('knight1')">🗡️ 长枪决斗士 (knight_1)</button>
+    <button class="view-btn" id="btn-model-knight2" onclick="switchModel('knight2')">🔫 燧发枪手 (knight_2)</button>
+    <button class="view-btn" id="btn-model-knight3" onclick="switchModel('knight3')">🐎 重装战马骑士 (knight_3)</button>
+
+    <div class="view-title">🎖️ 第四时代·现代战争 (Era 4)</div>
+    <button class="view-btn" id="btn-model-soldier1" onclick="switchModel('soldier1')">🪖 特种突击兵 (soldier_1)</button>
+    <button class="view-btn" id="btn-model-soldier2" onclick="switchModel('soldier2')">🔫 重型机枪手 (soldier_2)</button>
+    <button class="view-btn" id="btn-model-soldier3" onclick="switchModel('soldier3')">🚜 主战重型坦克 (Tank)</button>
+
+    <div class="view-title">🚀 第五时代·未来科幻 (Era 5)</div>
+    <button class="view-btn" id="btn-model-trooper1" onclick="switchModel('trooper1')">⚔️ 能量光剑兵 (trooper_1)</button>
+    <button class="view-btn" id="btn-model-trooper2" onclick="switchModel('trooper2')">⚡ 脉冲激光枪手 (trooper_2)</button>
+    <button class="view-btn" id="btn-model-trooper3" onclick="switchModel('trooper3')">🤖 重型毁灭机甲 (trooper_3)</button>
+
+    <div class="view-title">🦖 第一时代·石器时代 (Era 1)</div>
+    <button class="view-btn" id="btn-model-mrpio" onclick="switchModel('mrpio')">🦖 恐龙骑兵 (mrpio_3)</button>
+
+    <button class="view-btn" id="btn-model-caveman1" onclick="switchModel('caveman1')">🪓 原始棒槌手 (caveman_1)</button>
+    <button class="view-btn" id="btn-model-caveman2" onclick="switchModel('caveman2')">🎯 原始投石手 (caveman_2)</button>
+  </div>
+
+  <!-- Key Hints -->
+  <div class="keys-hint">
+    快捷键：<span class="key-badge">W</span> 向前行进 | <span class="key-badge">S</span> 往回走 | <span class="key-badge">Shift+W</span> 奔跑冲锋 | <span class="key-badge">Shift+S</span> 奔跑后撤 | <span class="key-badge">Space</span> 攻击 | <span class="key-badge">X</span> 待机 | <span class="key-badge">R</span> 重置归位
+  </div>
+
+  <!-- Control Dock -->
+  <div class="control-dock">
+    <button class="btn active" id="btn-idle" onclick="triggerAction('idle')">🛑 驻足待机 (Idle)</button>
+    <button class="btn" id="btn-walk" onclick="triggerAction('walk')">🚶 向前行进 (Walk Forward)</button>
+    <button class="btn btn-special" id="btn-walkback" onclick="triggerAction('walkback')">🔙 往回走 (Walk Backward)</button>
+    <button class="btn" id="btn-run" onclick="triggerAction('run')">🏃 奔跑冲锋 (Run Charge)</button>
+    <button class="btn" id="btn-runback" onclick="triggerAction('runback')">🏃 奔跑后撤 (Run Retreat)</button>
+    <button class="btn btn-fire" id="btn-shoot" onclick="triggerAction('shoot')">🎯 攻击挥砍 (Attack)</button>
+    <button class="btn btn-fire" id="btn-shoot-down" onclick="triggerAction('shoot_down')">💥 暴击下劈 (Downward)</button>
+    <button class="btn btn-death" id="btn-death" onclick="triggerAction('death')">💀 击中倒地 (Death)</button>
+    <button class="btn" id="btn-toggle-backmode" onclick="toggleWalkBackMode()">🔁 往回走模式: 调头走</button>
+    <button class="btn" onclick="resetPosition()">🔄 重置回起点</button>
+  </div>
+
+  <script>
+    // --- Global State ---
+    let scene, camera, renderer, controls;
+    let clock = new THREE.Clock();
+    let currentModel = 'swordman1'; // Default to medieval swordsman!
+    let characterGroup, mixer, currentAction;
+    let animationsMap = {};
+    let activeState = 'idle'; // 'idle', 'walk', 'walkback', 'run', 'runback', 'shoot', 'death'
+    let moveSpeed = 0;
+    let targetSpeed = 0;
+    let cameraMode = 'side'; // 'side', 'chase', 'orbit'
+    let walkBackMode = 'turn'; // 'turn' or 'backstep'
+    let isFlipped = false;
+    let particles = [];
+    let bullets = [];
+    let audioCtx = null;
+    let loadedModelScene = null;
+    let baseCastleGroup = null;
+    let currentLoadedEra = null;
+
+    // Full Model Registry
+    const MODEL_CONFIGS = {
+      // Era 2 - Medieval (中世纪)
+      swordman1: {
+        name: '第二时代·剑盾轻步兵 (swordman_1.glb)',
+        eraName: '第二时代·中世纪',
+        era: 2,
+        local: './models/era2/swordman_1.glb',
+        scale: 1.25,
+        walkSpeed: 2.8,
+        runSpeed: 6.2,
+        rotationY: Math.PI / 2,
+        attackType: 'melee_sword'
+      },
+      swordman2: {
+        name: '第二时代·战弓手 (swordman_2.glb)',
+        eraName: '第二时代·中世纪',
+        era: 2,
+        local: './models/era2/swordman_2.glb',
+        scale: 1.25,
+        walkSpeed: 2.8,
+        runSpeed: 6.0,
+        rotationY: Math.PI / 2,
+        attackType: 'arrow'
+      },
+      swordman3: {
+        name: '第二时代·双马战车骑兵 (swordman_3.glb)',
+        eraName: '第二时代·中世纪',
+        era: 2,
+        local: './models/era2/swordman_3.glb',
+        scale: 1.2,
+        walkSpeed: 4.6,
+        runSpeed: 8.8,
+        rotationY: Math.PI / 2,
+        attackType: 'chariot_charge'
+      },
+
+      // Era 3 - Renaissance (文艺复兴)
+      knight1: {
+        name: '第三时代·长枪决斗士 (knight_1.glb)',
+        eraName: '第三时代·文艺复兴',
+        era: 3,
+        local: './models/era3/knight_1.glb',
+        scale: 1.25,
+        walkSpeed: 3.0,
+        runSpeed: 6.4,
+        rotationY: Math.PI / 2,
+        attackType: 'spear_thrust'
+      },
+      knight2: {
+        name: '第三时代·燧发枪手 (knight_2.glb)',
+        eraName: '第三时代·文艺复兴',
+        era: 3,
+        local: './models/era3/knight_2.glb',
+        scale: 1.25,
+        walkSpeed: 2.8,
+        runSpeed: 6.0,
+        rotationY: Math.PI / 2,
+        attackType: 'musket_fire'
+      },
+      knight3: {
+        name: '第三时代·重装战马骑士 (knight_3.glb)',
+        eraName: '第三时代·文艺复兴',
+        era: 3,
+        local: './models/era3/knight_3.glb',
+        scale: 1.15,
+        walkSpeed: 4.8,
+        runSpeed: 9.0,
+        rotationY: Math.PI / 2,
+        attackType: 'horse_charge'
+      },
+
+      // Era 4 - Modern (现代战争)
+      soldier1: {
+        name: '第四时代·特种突击兵 (soldier_1.glb)',
+        eraName: '第四时代·现代战争',
+        era: 4,
+        local: './models/era4/soldier_1.glb',
+        scale: 1.25,
+        walkSpeed: 3.2,
+        runSpeed: 7.2,
+        rotationY: Math.PI / 2,
+        attackType: 'rifle_burst'
+      },
+      soldier2: {
+        name: '第四时代·重型机枪手 (soldier_2.glb)',
+        eraName: '第四时代·现代战争',
+        era: 4,
+        local: './models/era4/soldier_2.glb',
+        scale: 1.25,
+        walkSpeed: 2.8,
+        runSpeed: 6.2,
+        rotationY: Math.PI / 2,
+        attackType: 'heavy_machinegun'
+      },
+      soldier3: {
+        name: '第四时代·主战重型坦克 (soldier_3.glb)',
+        eraName: '第四时代·现代战争',
+        era: 4,
+        local: './models/era4/soldier_3.glb',
+        scale: 4.6,
+        walkSpeed: 3.6,
+        runSpeed: 7.0,
+        rotationY: Math.PI / 2,
+        attackType: 'tank_cannon',
+        isVehicle: true
+      },
+
+      // Era 5 - Future (未来科幻)
+      trooper1: {
+        name: '第五时代·能量光剑兵 (trooper_1.glb)',
+        eraName: '第五时代·未来科幻',
+        era: 5,
+        local: './models/era5/trooper_1.glb',
+        scale: 2.8,
+        walkSpeed: 3.5,
+        runSpeed: 7.5,
+        rotationY: Math.PI / 2,
+        attackType: 'lightsaber'
+      },
+      trooper2: {
+        name: '第五时代·脉冲激光枪手 (trooper_2.glb)',
+        eraName: '第五时代·未来科幻',
+        era: 5,
+        local: './models/era5/trooper_2.glb',
+        scale: 2.0,
+        walkSpeed: 3.2,
+        runSpeed: 7.0,
+        rotationY: Math.PI / 2,
+        attackType: 'plasma_rifle'
+      },
+      trooper3: {
+        name: '第五时代·终极毁灭机甲 (trooper_3.glb)',
+        eraName: '第五时代·未来科幻',
+        era: 5,
+        local: './models/era5/trooper_3.glb',
+        scale: 2.5,
+        walkSpeed: 3.0,
+        runSpeed: 6.0,
+        rotationY: Math.PI / 2,
+        attackType: 'mech_cannon',
+        isVehicle: true
+      },
+
+      // Era 1 - Stone Age (石器时代)
+      mrpio: {
+        name: '第一时代·恐龙骑兵 (mrpio_caveman_3.glb)',
+        eraName: '第一时代·石器时代',
+        era: 1,
+        local: './models/era1/mrpio_caveman_3.glb',
+        scale: 1.3,
+        walkSpeed: 4.5,
+        runSpeed: 9.2,
+        rotationY: Math.PI / 2,
+        attackType: 'dino_charge'
+      },
+      caveman1: {
+        name: '第一时代·棒槌手 (caveman_1_remastered.glb)',
+        eraName: '第一时代·石器时代',
+        era: 1,
+        local: './models/era1/caveman_1_remastered.glb',
+        scale: 1.25,
+        walkSpeed: 2.8,
+        runSpeed: 6.2,
+        rotationY: Math.PI,
+        attackType: 'melee_club'
+      },
+      caveman2: {
+        name: '第一时代·投石手 (caveman_2_remastered.glb)',
+        eraName: '第一时代·石器时代',
+        era: 1,
+        local: './models/era1/caveman_2_remastered.glb',
+        scale: 1.25,
+        walkSpeed: 2.8,
+        runSpeed: 6.0,
+        rotationY: Math.PI,
+        attackType: 'ranged_sling'
+      }
+    };
+
+    // --- Web Audio Synthesizer ---
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playSound(type) {
+      if (!audioCtx) return;
+      const t = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'step') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(120, t);
+        osc.frequency.exponentialRampToValueAtTime(40, t + 0.08);
+        gain.gain.setValueAtTime(0.12, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.08);
+        osc.start(t);
+        osc.stop(t + 0.08);
+      } else if (type === 'sword') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(750, t);
+        osc.frequency.exponentialRampToValueAtTime(140, t + 0.14);
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.14);
+        osc.start(t);
+        osc.stop(t + 0.14);
+      } else if (type === 'cannon') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(95, t);
+        osc.frequency.exponentialRampToValueAtTime(20, t + 0.5);
+        gain.gain.setValueAtTime(0.7, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.5);
+        osc.start(t);
+        osc.stop(t + 0.5);
+      } else if (type === 'club') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(180, t);
+        osc.frequency.exponentialRampToValueAtTime(35, t + 0.16);
+        gain.gain.setValueAtTime(0.45, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.16);
+        osc.start(t);
+        osc.stop(t + 0.16);
+      } else if (type === 'sling') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(540, t);
+        osc.frequency.exponentialRampToValueAtTime(80, t + 0.14);
+        gain.gain.setValueAtTime(0.35, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.14);
+        osc.start(t);
+        osc.stop(t + 0.14);
+      } else if (type === 'roar') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(95, t);
+        osc.frequency.linearRampToValueAtTime(170, t + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(35, t + 0.38);
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.38);
+        osc.start(t);
+        osc.stop(t + 0.38);
+      } else if (type === 'gun') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(600, t);
+        osc.frequency.exponentialRampToValueAtTime(60, t + 0.18);
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+        osc.start(t);
+        osc.stop(t + 0.18);
+      } else if (type === 'laser') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1400, t);
+        osc.frequency.exponentialRampToValueAtTime(180, t + 0.22);
+        gain.gain.setValueAtTime(0.35, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
+        osc.start(t);
+        osc.stop(t + 0.22);
+      } else if (type === 'hit') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(160, t);
+        osc.frequency.exponentialRampToValueAtTime(30, t + 0.28);
+        gain.gain.setValueAtTime(0.35, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.28);
+        osc.start(t);
+        osc.stop(t + 0.28);
+      }
+    }
+
+    // --- Scene Setup ---
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x090d16);
+      scene.fog = new THREE.FogExp2(0x090d16, 0.009);
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 - 0.02;
+
+      characterGroup = new THREE.Group();
+      scene.add(characterGroup);
+
+      setupLighting();
+      setupBattlefield();
+      loadModel(currentModel);
+
+      window.addEventListener('resize', onWindowResize);
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('click', () => initAudio(), { once: true });
+
+      animate();
+    }
+
+    function setupLighting() {
+      const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+      scene.add(ambient);
+
+      // Warm directional sunlight
+      const sun = new THREE.DirectionalLight(0xffedd5, 1.6);
+      sun.position.set(25, 45, 20);
+      sun.castShadow = true;
+      sun.shadow.mapSize.width = 2048;
+      sun.shadow.mapSize.height = 2048;
+      sun.shadow.camera.near = 0.5;
+      sun.shadow.camera.far = 180;
+      sun.shadow.camera.left = -50;
+      sun.shadow.camera.right = 50;
+      sun.shadow.camera.top = 50;
+      sun.shadow.camera.bottom = -50;
+      sun.shadow.bias = -0.0005;
+      scene.add(sun);
+
+      // Soft fill light
+      const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.6);
+      fillLight.position.set(-25, 20, -20);
+      scene.add(fillLight);
+    }
+
+    function setupBattlefield() {
+      const roadLength = 240;
+      const roadWidth = 14;
+
+      // Stone & dirt highway
+      const roadGeo = new THREE.PlaneGeometry(roadWidth, roadLength, 20, 80);
+      const roadMat = new THREE.MeshStandardMaterial({
+        color: 0x334155,
+        roughness: 0.88,
+        metalness: 0.05
+      });
+      const road = new THREE.Mesh(roadGeo, roadMat);
+      road.rotation.x = -Math.PI / 2;
+      road.position.set(0, 0.02, -roadLength / 2 + 30);
+      road.receiveShadow = true;
+      scene.add(road);
+
+      // Surrounding terrain
+      const terrainGeo = new THREE.PlaneGeometry(360, 360);
+      const terrainMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.95,
+        metalness: 0.02
+      });
+      const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+      terrain.rotation.x = -Math.PI / 2;
+      terrain.position.set(0, 0, 0);
+      terrain.receiveShadow = true;
+      scene.add(terrain);
+
+      // Marching Lane Curbs
+      const curbGeo = new THREE.BoxGeometry(0.5, 0.3, roadLength);
+      const curbMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+
+      const curbLeft = new THREE.Mesh(curbGeo, curbMat);
+      curbLeft.position.set(-roadWidth / 2, 0.15, -roadLength / 2 + 30);
+      curbLeft.castShadow = true;
+      curbLeft.receiveShadow = true;
+      scene.add(curbLeft);
+
+      const curbRight = curbLeft.clone();
+      curbRight.position.x = roadWidth / 2;
+      scene.add(curbRight);
+
+      // Road distance stripes
+      for (let z = 20; z >= -180; z -= 15) {
+        const stripGeo = new THREE.BoxGeometry(roadWidth * 0.75, 0.02, 0.25);
+        const stripMat = new THREE.MeshBasicMaterial({ color: 0x64748b });
+        const strip = new THREE.Mesh(stripGeo, stripMat);
+        strip.position.set(0, 0.03, z);
+        scene.add(strip);
+      }
+
+      // Starting Base Group
+      baseCastleGroup = new THREE.Group();
+      baseCastleGroup.position.set(0, 0, 26);
+      scene.add(baseCastleGroup);
+
+      // Target Enemy Bunker at the far end (Z = -180)
+      createEnemyBunker(0, -180);
+
+      // Scenery Trees & Rocks
+      loadScenery();
+    }
+
+    function fitObjectToHeight(obj, targetH) {
+      const box = new THREE.Box3().setFromObject(obj);
+      const size = box.getSize(new THREE.Vector3());
+      if (size.y > 0.001) {
+        const factor = targetH / size.y;
+        obj.scale.multiplyScalar(factor);
+      }
+    }
+
+    function updateBaseForEra(era) {
+      if (currentLoadedEra === era) return;
+      currentLoadedEra = era;
+
+      while (baseCastleGroup.children.length > 0) {
+        baseCastleGroup.remove(baseCastleGroup.children[0]);
+      }
+
+      const baseFiles = {
+        1: { base: './models/era1/base_1.glb', turret: './models/era1/turret_1_1.glb', h: 8.5 },
+        2: { base: './models/era2/base_2.glb', turret: './models/era2/turret_2_1.glb', h: 9.0 },
+        3: { base: './models/era3/base_3.glb', turret: './models/era3/turrets_3.glb', h: 9.0 },
+        4: { base: './models/era4/base_4.glb', turret: './models/era4/turrets_4.glb', h: 8.5 },
+        5: { base: './models/era5/base_5.glb', turret: './models/era5/turrets_5.glb', h: 9.5 }
+      };
+
+      const cfg = baseFiles[era] || baseFiles[2];
+      const loader = new THREE.GLTFLoader();
+
+      loader.load(cfg.base, (gltf) => {
+        const baseMesh = gltf.scene;
+        fitObjectToHeight(baseMesh, cfg.h);
+        baseMesh.position.set(0, 0, 0);
+        baseMesh.traverse(c => {
+          if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+        });
+        baseCastleGroup.add(baseMesh);
+
+        // Load Turret atop base
+        if (cfg.turret) {
+          loader.load(cfg.turret, (tGltf) => {
+            const turretMesh = tGltf.scene;
+            fitObjectToHeight(turretMesh, 2.2);
+            turretMesh.position.set(2.5, cfg.h * 0.72, -1.0);
+            turretMesh.rotation.y = Math.PI / 2;
+            turretMesh.traverse(c => {
+              if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+            });
+            baseCastleGroup.add(turretMesh);
+          }, undefined, () => {});
+        }
+      }, undefined, () => {
+        // Fallback fortress
+        const wallGeo = new THREE.BoxGeometry(16, 7, 5);
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+        const wall = new THREE.Mesh(wallGeo, wallMat);
+        wall.position.y = 3.5;
+        wall.castShadow = true;
+        baseCastleGroup.add(wall);
+      });
+    }
+
+    function loadScenery() {
+      const loader = new THREE.GLTFLoader();
+
+      const sceneryItems = [
+        // Left flank scenery
+        { file: './models/era1/tree_1.glb', x: -10.5, z: 12, s: 1.0, r: 0.3 },
+        { file: './models/era1/bush_1.glb', x: -8.0, z: 8, s: 1.2, r: 1.1 },
+        { file: './models/era1/rock_1.glb', x: -8.5, z: -5, s: 1.1, r: 0.5 },
+        { file: './models/era1/tree_2.glb', x: -11.0, z: -18, s: 1.05, r: 2.1 },
+        { file: './models/era1/pine_1.glb', x: -12.5, z: -35, s: 1.1, r: 0.8 },
+        { file: './models/era1/trunk_1.glb', x: -8.0, z: -48, s: 0.95, r: 0.4 },
+        { file: './models/era1/tree_3.glb', x: -11.5, z: -65, s: 1.0, r: 3.1 },
+        { file: './models/era1/pine_2.glb', x: -12.0, z: -88, s: 1.15, r: 1.4 },
+        { file: './models/era1/tree_1.glb', x: -10.5, z: -110, s: 0.95, r: 2.2 },
+        { file: './models/era1/rock_1.glb', x: -8.2, z: -130, s: 1.2, r: 1.8 },
+        { file: './models/era1/tree_2.glb', x: -11.0, z: -155, s: 1.05, r: 0.7 },
+
+        // Right flank scenery
+        { file: './models/era1/pine_2.glb', x: 11.5, z: 14, s: 1.05, r: 1.7 },
+        { file: './models/era1/tree_2.glb', x: 10.5, z: 2, s: 1.0, r: 0.9 },
+        { file: './models/era1/trunk_1.glb', x: 8.2, z: -12, s: 1.0, r: 2.4 },
+        { file: './models/era1/tree_1.glb', x: 11.5, z: -28, s: 1.1, r: 3.0 },
+        { file: './models/era1/bush_1.glb', x: 8.5, z: -42, s: 1.1, r: 0.6 },
+        { file: './models/era1/pine_1.glb', x: 12.0, z: -58, s: 1.15, r: 1.2 },
+        { file: './models/era1/rock_1.glb', x: 8.0, z: -75, s: 1.0, r: 2.9 },
+        { file: './models/era1/tree_3.glb', x: 11.0, z: -98, s: 1.05, r: 0.3 },
+        { file: './models/era1/tree_2.glb', x: 10.5, z: -122, s: 1.0, r: 2.5 },
+        { file: './models/era1/pine_2.glb', x: 12.0, z: -142, s: 1.1, r: 1.9 },
+        { file: './models/era1/tree_1.glb', x: 11.0, z: -165, s: 1.0, r: 0.4 }
+      ];
+
+      const cache = {};
+      sceneryItems.forEach(item => {
+        if (!cache[item.file]) {
+          cache[item.file] = new Promise(resolve => {
+            loader.load(item.file, gltf => {
+              gltf.scene.traverse(c => {
+                if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }
+              });
+              resolve(gltf.scene);
+            }, undefined, () => resolve(null));
+          });
+        }
+        cache[item.file].then(sceneObj => {
+          if (!sceneObj) return;
+          const inst = sceneObj.clone();
+          inst.scale.set(item.s, item.s, item.s);
+          inst.position.set(item.x, 0, item.z);
+          inst.rotation.y = item.r;
+          scene.add(inst);
+        });
+      });
+    }
+
+    function createEnemyBunker(x, z) {
+      const bunker = new THREE.Group();
+      bunker.position.set(x, 0, z);
+
+      const bGeo = new THREE.BoxGeometry(20, 7, 8);
+      const bMat = new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.7 });
+      const bMesh = new THREE.Mesh(bGeo, bMat);
+      bMesh.position.y = 3.5;
+      bMesh.castShadow = true;
+      bMesh.receiveShadow = true;
+      bunker.add(bMesh);
+
+      // Warning Red Beacons
+      const lightGeo = new THREE.SphereGeometry(0.6, 16, 16);
+      const lightMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+      const l1 = new THREE.Mesh(lightGeo, lightMat);
+      l1.position.set(-7, 7.2, 0);
+      bunker.add(l1);
+      const l2 = l1.clone();
+      l2.position.x = 7;
+      bunker.add(l2);
+
+      scene.add(bunker);
+    }
+
+    // --- Load 3D Character Model ---
+    function loadModel(modelKey) {
+      document.getElementById('loading').style.opacity = '1';
+      document.getElementById('loading').style.display = 'flex';
+
+      const config = MODEL_CONFIGS[modelKey];
+      document.getElementById('model-name-val').innerText = config.name;
+      document.getElementById('era-val').innerText = config.eraName;
+
+      // Sync base castle with unit era
+      updateBaseForEra(config.era);
+
+      // Update right view buttons active state
+      document.querySelectorAll('.view-btn').forEach(btn => {
+        if (btn.id.startsWith('btn-model-')) {
+          btn.classList.toggle('active', btn.id === 'btn-model-' + modelKey);
+        }
+      });
+
+      // Clean old model
+      while (characterGroup.children.length > 0) {
+        characterGroup.remove(characterGroup.children[0]);
+      }
+      animationsMap = {};
+      if (mixer) mixer.stopAllAction();
+      loadedModelScene = null;
+
+      const loader = new THREE.GLTFLoader();
+
+      loader.load(
+        config.local,
+        (gltf) => onModelLoaded(gltf, config),
+        undefined,
+        (err) => {
+          console.error(`Local model load failed for ${modelKey}:`, err);
+          alert(`模型 ${config.name} 加载失败，请检查控制台！`);
+          document.getElementById('loading').style.display = 'none';
+        }
+      );
+    }
+
+    function onModelLoaded(gltf, config) {
+      const model = gltf.scene;
+      loadedModelScene = model;
+      model.scale.set(config.scale, config.scale, config.scale);
+
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            child.material.opacity = 1.0;
+            child.material.transparent = false;
+            child.material.depthWrite = true;
+            child.material.roughness = THREE.MathUtils.clamp(child.material.roughness || 0.6, 0.3, 0.9);
+          }
+        }
+      });
+
+      // Default facing towards -Z (towards enemy bunker)
+      model.rotation.y = config.rotationY !== undefined ? config.rotationY : (Math.PI / 2);
+      isFlipped = false;
+
+      characterGroup.add(model);
+      characterGroup.position.set(0, 0, 15); // Start position near base
+
+      // Setup Animation Mixer
+      mixer = new THREE.AnimationMixer(model);
+
+      gltf.animations.forEach((clip) => {
+        const action = mixer.clipAction(clip);
+        const name = clip.name.toLowerCase();
+        animationsMap[name] = action;
+        console.log(`Loaded animation: ${clip.name} (key: ${name})`);
+
+        // Broad semantic mapping
+        if (name.includes('walk') && !animationsMap['walk']) {
+          animationsMap['walk'] = action;
+        }
+        if (name.includes('run') && !animationsMap['run']) {
+          animationsMap['run'] = action;
+        }
+        if ((name.includes('attack_down') || name.includes('downward')) && !animationsMap['attack_down']) {
+          animationsMap['attack_down'] = action;
+        }
+        if ((name.includes('attack') || name.includes('shoot') || name.includes('punch')) && !animationsMap['shoot']) {
+          animationsMap['shoot'] = action;
+        }
+        if (name.includes('idle') && !animationsMap['idle']) {
+          animationsMap['idle'] = action;
+        }
+        if ((name.includes('die') || name.includes('death')) && !animationsMap['death']) {
+          animationsMap['death'] = action;
+        }
+      });
+
+      // Special priority: For caveman_1 (club wielder), default attack is violent downward smash
+      if (currentModel === 'caveman1' && animationsMap['attack_down']) {
+        animationsMap['shoot_down'] = animationsMap['attack_down'];
+        animationsMap['shoot_normal'] = animationsMap['shoot'];
+        animationsMap['shoot'] = animationsMap['attack_down'];
+      } else if (animationsMap['attack_down']) {
+        animationsMap['shoot_down'] = animationsMap['attack_down'];
+      }
+
+      // Fallbacks if animations are missing (e.g. Tank)
+      if (!animationsMap['idle']) {
+        animationsMap['idle'] = animationsMap['walk'] || animationsMap['shoot'] || Object.values(animationsMap)[0];
+      }
+      if (!animationsMap['walk']) {
+        animationsMap['walk'] = animationsMap['idle'] || animationsMap['shoot'] || Object.values(animationsMap)[0];
+      }
+      if (!animationsMap['run']) {
+        animationsMap['run'] = animationsMap['walk'];
+      }
+      if (!animationsMap['shoot']) {
+        animationsMap['shoot'] = animationsMap['walk'] || animationsMap['idle'];
+      }
+      if (!animationsMap['death']) {
+        animationsMap['death'] = animationsMap['idle'];
+      }
+
+      // Update dynamic attack button labels & visibility
+      const btnShootDown = document.getElementById('btn-shoot-down');
+      const btnShoot = document.getElementById('btn-shoot');
+      if (currentModel === 'caveman1') {
+        if (btnShoot) btnShoot.innerText = '🎯 攻击挥砍 (Attack)';
+        if (btnShootDown) btnShootDown.style.display = 'inline-block';
+      } else if (currentModel === 'caveman2') {
+        if (btnShoot) btnShoot.innerText = '🎯 弹弓射击 (Shoot)';
+        if (btnShootDown) btnShootDown.style.display = 'none';
+      } else {
+        if (btnShoot) btnShoot.innerText = '🎯 攻击判定 (Attack)';
+        if (btnShootDown) btnShootDown.style.display = animationsMap['attack_down'] ? 'inline-block' : 'none';
+      }
+
+      // Start with Idle
+      setAction('idle');
+
+      document.getElementById('loading').style.opacity = '0';
+      setTimeout(() => {
+        document.getElementById('loading').style.display = 'none';
+      }, 350);
+    }
+
+    // --- Action Transitions & Movement Handling ---
+    let attackTimer = null;
+    let attackVfxTimer = null;
+
+    function setAction(state) {
+      if (activeState === state && state !== 'shoot' && state !== 'shoot_down') return;
+
+      const prevAction = currentAction;
+      let nextAction = null;
+      const config = MODEL_CONFIGS[currentModel];
+      const baseRot = config.rotationY !== undefined ? config.rotationY : (Math.PI / 2);
+
+      if (state === 'idle') {
+        nextAction = animationsMap['idle'];
+        targetSpeed = 0;
+        if (loadedModelScene) {
+          loadedModelScene.rotation.y = baseRot + (isFlipped ? Math.PI : 0);
+        }
+      } else if (state === 'walk') {
+        nextAction = animationsMap['walk'];
+        targetSpeed = config.walkSpeed;
+        if (loadedModelScene) {
+          loadedModelScene.rotation.y = baseRot + (isFlipped ? Math.PI : 0);
+        }
+      } else if (state === 'walkback') {
+        nextAction = animationsMap['walk'];
+        targetSpeed = -config.walkSpeed; // moves towards +Z (friendly base)
+        if (loadedModelScene) {
+          if (walkBackMode === 'turn') {
+            // Turn around towards friendly base
+            loadedModelScene.rotation.y = baseRot + Math.PI + (isFlipped ? Math.PI : 0);
+          } else {
+            // Backstep mode: faces enemy, steps backward
+            loadedModelScene.rotation.y = baseRot + (isFlipped ? Math.PI : 0);
+          }
+        }
+      } else if (state === 'run') {
+        nextAction = animationsMap['run'];
+        targetSpeed = config.runSpeed;
+        if (loadedModelScene) {
+          loadedModelScene.rotation.y = baseRot + (isFlipped ? Math.PI : 0);
+        }
+      } else if (state === 'runback') {
+        nextAction = animationsMap['run'];
+        targetSpeed = -config.runSpeed;
+        if (loadedModelScene) {
+          if (walkBackMode === 'turn') {
+            loadedModelScene.rotation.y = baseRot + Math.PI + (isFlipped ? Math.PI : 0);
+          } else {
+            loadedModelScene.rotation.y = baseRot + (isFlipped ? Math.PI : 0);
+          }
+        }
+      } else if (state === 'shoot') {
+        nextAction = (currentModel === 'caveman1' && animationsMap['shoot_normal']) ? animationsMap['shoot_normal'] : (animationsMap['shoot'] || animationsMap['walk']);
+        targetSpeed = 0;
+        if (loadedModelScene) {
+          loadedModelScene.rotation.y = baseRot + (isFlipped ? Math.PI : 0);
+        }
+      } else if (state === 'shoot_down') {
+        nextAction = animationsMap['shoot_down'] || animationsMap['attack_down'] || animationsMap['shoot'] || animationsMap['walk'];
+        targetSpeed = 0;
+        if (loadedModelScene) {
+          loadedModelScene.rotation.y = baseRot + (isFlipped ? Math.PI : 0);
+        }
+      } else if (state === 'death') {
+        nextAction = animationsMap['death'];
+        targetSpeed = 0;
+      }
+
+      if (nextAction) {
+        if (prevAction && prevAction !== nextAction) {
+          prevAction.fadeOut(0.15);
+        }
+        nextAction.reset().fadeIn(0.15);
+
+        // Animation playback speed and direction
+        if ((state === 'walkback' || state === 'runback') && walkBackMode === 'backstep') {
+          nextAction.timeScale = -1.0; // Reverse animation walk cycle
+        } else if (state === 'run' || state === 'runback') {
+          nextAction.timeScale = (animationsMap['run'] === animationsMap['walk']) ? 1.6 : 1.0;
+        } else if (state === 'shoot' || state === 'shoot_down') {
+          const clipDur = nextAction.getClip().duration;
+          // caveman2 重制版弹弓动作：总长 0.80s (25帧)，起手快速拉满，第13帧(0.40s)满弓松弦，飞石激射！
+          if (currentModel === 'caveman2') {
+            nextAction.timeScale = 1.05;
+          } else {
+            // Mixamo 原版长达 5~6秒，加速至 2.4倍速（约1.1秒完成打击），打击感干脆利落
+            nextAction.timeScale = clipDur > 3.0 ? 2.4 : 1.0;
+          }
+          nextAction.setLoop(THREE.LoopOnce, 1);
+          nextAction.clampWhenFinished = false;
+        } else {
+          nextAction.timeScale = 1.0;
+        }
+
+        if (state === 'death') {
+          nextAction.setLoop(THREE.LoopOnce, 1);
+          nextAction.clampWhenFinished = true;
+        }
+
+        nextAction.play();
+        currentAction = nextAction;
+      }
+
+      activeState = state;
+      updateUI();
+    }
+
+    function triggerAction(actionName) {
+      initAudio();
+
+      if (actionName === 'shoot' || actionName === 'shoot_down') {
+        if (attackTimer) clearTimeout(attackTimer);
+        if (attackVfxTimer) clearTimeout(attackVfxTimer);
+
+        setAction(actionName);
+
+        const act = currentAction;
+        const clipDur = act ? act.getClip().duration : 1.0;
+        const timeScale = act ? act.timeScale : 1.0;
+        const isLongClip = clipDur > 3.0;
+
+        let impactDelayMs, totalDurationMs;
+        if (currentModel === 'caveman2') {
+          // 弹弓在第 13 帧达到满弓极限并松弦击发 (0.40s / 1.05 = ~380ms)
+          impactDelayMs = Math.round((0.40 / timeScale) * 1000); // 约 380ms
+          totalDurationMs = Math.round((clipDur / timeScale) * 1000); // 约 760ms
+        } else {
+          // 挥砸攻击触底命中瞬间：下劈约 720ms，横扫约 680ms
+          impactDelayMs = isLongClip ? (actionName === 'shoot_down' ? 720 : 660) : 250;
+          // 完整招式收尾切回时间（约1.2秒）
+          totalDurationMs = isLongClip ? 1200 : Math.min(Math.max((clipDur / timeScale) * 1000, 650), 1600);
+        }
+
+        attackVfxTimer = setTimeout(() => {
+          if (activeState === 'shoot' || activeState === 'shoot_down') {
+            performAttackVFX();
+          }
+        }, impactDelayMs);
+
+        attackTimer = setTimeout(() => {
+          if (activeState === 'shoot' || activeState === 'shoot_down') {
+            setAction(Math.abs(moveSpeed) > 0.5 ? 'walk' : 'idle');
+          }
+        }, totalDurationMs);
+      } else {
+        setAction(actionName);
+      }
+    }
+
+    function toggleWalkBackMode() {
+      walkBackMode = (walkBackMode === 'turn') ? 'backstep' : 'turn';
+      const label = walkBackMode === 'turn' ? '调头走回基地 (Turn)' : '面向敌人倒退步 (Backstep)';
+      document.getElementById('walkback-mode-val').innerText = label;
+      document.getElementById('btn-toggle-backmode').innerText = `🔁 往回走模式: ${walkBackMode === 'turn' ? '调头走' : '倒退步'}`;
+
+      // Refresh current action if currently walking back
+      if (activeState === 'walkback' || activeState === 'runback') {
+        const cur = activeState;
+        activeState = '';
+        setAction(cur);
+      }
+    }
+
+    function performAttackVFX() {
+      const config = MODEL_CONFIGS[currentModel];
+      const type = config.attackType;
+
+      if (type === 'melee_club' || type === 'melee_sword' || type === 'spear_thrust') {
+        playSound(type === 'melee_club' ? 'club' : 'sword');
+        const impactPos = characterGroup.position.clone().add(new THREE.Vector3(0, 0.15, -1.3));
+        createMeleeShockwave(impactPos);
+      } else if (type === 'ranged_sling' || type === 'arrow') {
+        playSound('sling');
+        const startPos = (currentModel === 'caveman2')
+          ? characterGroup.position.clone().add(new THREE.Vector3(-0.1, 1.4, -0.8))
+          : characterGroup.position.clone().add(new THREE.Vector3(0.2, 1.2, -0.6));
+        createStoneBullet(startPos, type === 'arrow');
+      } else if (type === 'dino_charge' || type === 'chariot_charge' || type === 'horse_charge') {
+        playSound('roar');
+        const impactPos = characterGroup.position.clone().add(new THREE.Vector3(0, 1.0, -2.0));
+        createMeleeShockwave(impactPos);
+      } else if (type === 'rifle_burst' || type === 'heavy_machinegun' || type === 'musket_fire' || type === 'gun') {
+        playSound('gun');
+        const muzzlePos = characterGroup.position.clone().add(new THREE.Vector3(0.3, 1.3, -1.0));
+        createMuzzleFlash(muzzlePos);
+        createTracerBullet(muzzlePos, 0xffaa00);
+      } else if (type === 'tank_cannon' || type === 'mech_cannon') {
+        playSound('cannon');
+        const muzzlePos = characterGroup.position.clone().add(new THREE.Vector3(0, 1.4, -2.2));
+        createMuzzleFlash(muzzlePos);
+        createTracerBullet(muzzlePos, 0xff5500, 0.15);
+      } else if (type === 'lightsaber') {
+        playSound('laser');
+        const impactPos = characterGroup.position.clone().add(new THREE.Vector3(0, 1.0, -1.2));
+        createMeleeShockwave(impactPos);
+      } else if (type === 'plasma_rifle' || type === 'laser') {
+        playSound('laser');
+        const muzzlePos = characterGroup.position.clone().add(new THREE.Vector3(0.3, 1.2, -0.8));
+        createTracerBullet(muzzlePos, 0x00f0ff);
+      }
+    }
+
+    function createStoneBullet(pos, isArrow) {
+      let geo, mat;
+      if (isArrow) {
+        geo = new THREE.CylinderGeometry(0.02, 0.02, 0.8, 6);
+        mat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.5 });
+      } else {
+        geo = new THREE.DodecahedronGeometry(0.14);
+        mat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.9 });
+      }
+      const proj = new THREE.Mesh(geo, mat);
+      if (isArrow) proj.rotation.x = Math.PI / 2;
+      proj.position.copy(pos);
+      proj.castShadow = true;
+      scene.add(proj);
+
+      bullets.push({
+        mesh: proj,
+        speed: 65,
+        life: 0,
+        maxLife: 2.8,
+        isStone: true
+      });
+    }
+
+    function createTracerBullet(pos, color, radius = 0.04) {
+      const bulletGeo = new THREE.CylinderGeometry(radius, radius, 1.2, 6);
+      const bulletMat = new THREE.MeshBasicMaterial({ color: color });
+      const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+      bullet.rotation.x = Math.PI / 2;
+      bullet.position.copy(pos);
+      scene.add(bullet);
+
+      bullets.push({
+        mesh: bullet,
+        speed: 85,
+        life: 0,
+        maxLife: 2.5,
+        isStone: false
+      });
+    }
+
+    function createMeleeShockwave(pos) {
+      for (let i = 0; i < 14; i++) {
+        const pGeo = new THREE.SphereGeometry(0.08 + Math.random() * 0.12, 6, 6);
+        const pMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.7 });
+        const p = new THREE.Mesh(pGeo, pMat);
+        p.position.copy(pos);
+        scene.add(p);
+
+        const angle = Math.random() * Math.PI * 2;
+        const spd = 2 + Math.random() * 3;
+        const vel = new THREE.Vector3(Math.cos(angle) * spd, Math.random() * 2 + 1, Math.sin(angle) * spd);
+
+        particles.push({ mesh: p, vel, life: 0, maxLife: 0.35 });
+      }
+    }
+
+    function createMuzzleFlash(pos) {
+      const flashLight = new THREE.PointLight(0xffaa00, 4, 10);
+      flashLight.position.copy(pos);
+      scene.add(flashLight);
+      setTimeout(() => scene.remove(flashLight), 60);
+
+      for (let i = 0; i < 8; i++) {
+        const pGeo = new THREE.SphereGeometry(0.04 + Math.random() * 0.06, 6, 6);
+        const pMat = new THREE.MeshBasicMaterial({ color: 0xffe066 });
+        const p = new THREE.Mesh(pGeo, pMat);
+        p.position.copy(pos);
+        scene.add(p);
+
+        const vel = new THREE.Vector3(
+          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 2,
+          -Math.random() * 6 - 4
+        );
+
+        particles.push({ mesh: p, vel, life: 0, maxLife: 0.15 });
+      }
+    }
+
+    function createDustParticle(pos) {
+      const pGeo = new THREE.SphereGeometry(0.08 + Math.random() * 0.1, 6, 6);
+      const pMat = new THREE.MeshBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.6 });
+      const p = new THREE.Mesh(pGeo, pMat);
+      p.position.copy(pos);
+      p.position.y = 0.05;
+      scene.add(p);
+
+      const vel = new THREE.Vector3(
+        (Math.random() - 0.5) * 1.5,
+        Math.random() * 1.2,
+        Math.random() * 1.5 + 0.5
+      );
+
+      particles.push({ mesh: p, vel, life: 0, maxLife: 0.45 });
+    }
+
+    function resetPosition() {
+      characterGroup.position.set(0, 0, 15);
+      setAction('idle');
+    }
+
+    function switchModel(key) {
+      if (currentModel === key) return;
+      currentModel = key;
+      loadModel(key);
+    }
+
+    function setCameraMode(mode) {
+      cameraMode = mode;
+      document.getElementById('btn-view-side').classList.toggle('active', mode === 'side');
+      document.getElementById('btn-view-chase').classList.toggle('active', mode === 'chase');
+      document.getElementById('btn-view-orbit').classList.toggle('active', mode === 'orbit');
+    }
+
+    function updateUI() {
+      const btnMap = {
+        idle: 'btn-idle',
+        walk: 'btn-walk',
+        walkback: 'btn-walkback',
+        run: 'btn-run',
+        runback: 'btn-runback',
+        shoot: 'btn-shoot',
+        death: 'btn-death'
+      };
+
+      Object.entries(btnMap).forEach(([st, id]) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.toggle('active', activeState === st);
+      });
+
+      const badge = document.getElementById('status-val');
+      const stateLabels = {
+        idle: '待机警戒 (IDLE)',
+        walk: '向前行军 (WALK FORWARD)',
+        walkback: '往回撤退 (WALK BACK)',
+        run: '全速冲锋 (RUN CHARGE)',
+        runback: '全速后撤 (RUN RETREAT)',
+        shoot: '攻击判定 (ATTACKING)',
+        death: '阵亡倒地 (ELIMINATED)'
+      };
+      badge.innerText = stateLabels[activeState] || activeState;
+    }
+
+    function handleKeyDown(e) {
+      initAudio();
+      const key = e.key.toLowerCase();
+      if (key === 'w') {
+        if (e.shiftKey) triggerAction('run');
+        else triggerAction('walk');
+      } else if (key === 's') {
+        if (e.shiftKey) triggerAction('runback');
+        else triggerAction('walkback');
+      } else if (key === 'x') {
+        triggerAction('idle');
+      } else if (key === ' ') {
+        e.preventDefault();
+        triggerAction('shoot');
+      } else if (key === 'r') {
+        resetPosition();
+      }
+    }
+
+    // --- Main Animation & Render Loop ---
+    let lastStepTime = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      const time = clock.getElapsedTime();
+
+      // Update Skeletal Animations
+      if (mixer) {
+        mixer.update(delta);
+      }
+
+      // Smooth Speed Interpolation
+      moveSpeed = THREE.MathUtils.lerp(moveSpeed, targetSpeed, delta * 8);
+
+      const config = MODEL_CONFIGS[currentModel];
+
+      // Vehicle slight engine rumble
+      if (config && config.isVehicle && loadedModelScene) {
+        if (activeState === 'walk' || activeState === 'run' || activeState === 'walkback' || activeState === 'runback') {
+          loadedModelScene.position.y = Math.sin(time * 24) * 0.02;
+        } else {
+          loadedModelScene.position.y = 0;
+        }
+      }
+
+      // Character Actual Spatial Translation Forward/Backward along Z
+      if (activeState === 'walk' || activeState === 'run' || activeState === 'walkback' || activeState === 'runback') {
+        characterGroup.position.z -= moveSpeed * delta;
+
+        // Footstep dust & audio
+        if (Math.abs(moveSpeed) > 0.4) {
+          const isFast = Math.abs(moveSpeed) > 4.5;
+          if (time - lastStepTime > (isFast ? 0.28 : 0.45)) {
+            lastStepTime = time;
+            playSound('step');
+            createDustParticle(characterGroup.position.clone().add(new THREE.Vector3(0.2, 0, 0)));
+            createDustParticle(characterGroup.position.clone().add(new THREE.Vector3(-0.2, 0, 0)));
+          }
+        }
+
+        // Loop boundaries:
+        if (characterGroup.position.z < -172) {
+          characterGroup.position.z = 15;
+        }
+        if (characterGroup.position.z > 24) {
+          characterGroup.position.z = -160;
+        }
+      }
+
+      // Update Bullets & Projectiles
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.mesh.position.z -= b.speed * delta;
+        b.life += delta;
+
+        // Hit enemy bunker or range limit
+        if (b.mesh.position.z <= -176) {
+          playSound('hit');
+          for (let k = 0; k < 12; k++) {
+            const spGeo = new THREE.SphereGeometry(0.08, 4, 4);
+            const sp = new THREE.Mesh(spGeo, new THREE.MeshBasicMaterial({ color: b.isStone ? 0x94a3b8 : 0xff3300 }));
+            sp.position.copy(b.mesh.position);
+            scene.add(sp);
+            const vel = new THREE.Vector3((Math.random() - 0.5) * 8, Math.random() * 6, Math.random() * 8);
+            particles.push({ mesh: sp, vel, life: 0, maxLife: 0.3 });
+          }
+          scene.remove(b.mesh);
+          bullets.splice(i, 1);
+        } else if (b.life >= b.maxLife) {
+          scene.remove(b.mesh);
+          bullets.splice(i, 1);
+        }
+      }
+
+      // Update Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life += delta;
+        p.mesh.position.addScaledVector(p.vel, delta);
+        if (p.mesh.material.opacity) {
+          p.mesh.material.opacity = 1 - (p.life / p.maxLife);
+        }
+
+        if (p.life >= p.maxLife) {
+          scene.remove(p.mesh);
+          particles.splice(i, 1);
+        }
+      }
+
+      // Camera Rig Following
+      const targetPos = characterGroup.position;
+      if (cameraMode === 'side') {
+        controls.enabled = false;
+        camera.position.set(targetPos.x + 14, targetPos.y + 3.8, targetPos.z + 1.2);
+        camera.lookAt(targetPos.x, targetPos.y + 1.4, targetPos.z);
+      } else if (cameraMode === 'chase') {
+        controls.enabled = false;
+        const isFacingBase = (activeState === 'walkback' || activeState === 'runback') && walkBackMode === 'turn';
+        const camZOffset = isFacingBase ? -6.0 : 6.0;
+        const lookTargetZ = isFacingBase ? targetPos.z + 15 : targetPos.z - 15;
+        camera.position.set(targetPos.x + 1.2, targetPos.y + 2.8, targetPos.z + camZOffset);
+        camera.lookAt(targetPos.x, targetPos.y + 1.4, lookTargetZ);
+      } else {
+        controls.enabled = true;
+        controls.target.copy(targetPos);
+        controls.update();
+      }
+
+      // Update HUD Numbers
+      const marchDistance = 15 - targetPos.z;
+      document.getElementById('dist-val').innerText = `${marchDistance.toFixed(2)} 米 (${marchDistance >= 0 ? '推进' : '后撤'})`;
+      document.getElementById('speed-val').innerText = `${Math.abs(moveSpeed).toFixed(2)} 米/秒`;
+
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // Launch
+    window.onload = init;
+  </script>
+</body>
+</html>
